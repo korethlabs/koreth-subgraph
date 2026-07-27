@@ -1,0 +1,22 @@
+name: Deploy
+
+# Subgraph changes redeploy only the subgraph against the running graph-node/anvil.
+# Runs on the self-hosted runner on spartakus after merge to main.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: koreth-deploy-subgraph
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, spartakus]
+    steps:
+      - name: Redeploy subgraph
+        run: |
+          set -e
+          cd "$HOME/koreth"
+          git pull --ff-only
+          ./scripts/deploy-subgraph.sh
