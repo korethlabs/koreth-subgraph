@@ -21,7 +21,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # graph-cli's dependency tree pins conflicting @types/node versions that make
+      # `npm ci` reject the lockfile, so we use `npm install` here.
+      - run: npm install --no-audit --no-fund
 
       # Generates AssemblyScript types from schema + committed ABIs, then compiles
       # the mappings to WASM. Catches schema/handler/ABI mismatches.
