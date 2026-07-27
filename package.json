@@ -1,0 +1,22 @@
+{
+  "name": "@koreth/subgraph",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph codegen && graph build",
+    "deploy": "graph deploy koreth/koreth-protocol",
+    "prepare-local": "node scripts/prepare-local.mjs",
+    "build-local": "graph codegen && graph build --network mainnet",
+    "create-local": "graph create --node http://localhost:8020 koreth/local",
+    "remove-local": "graph remove --node http://localhost:8020 koreth/local",
+    "deploy-local": "graph codegen && graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 --network mainnet --version-label v0.0.1 koreth/local",
+    "test": "graph test",
+    "clean": "rm -rf build generated"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.93.0",
+    "@graphprotocol/graph-ts": "^0.35.0",
+    "matchstick-as": "^0.6.0"
+  }
+}

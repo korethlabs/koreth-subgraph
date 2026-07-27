@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Graph codegen / build output
+generated/
+build/
+
+# Env / secrets — NEVER commit keys or mnemonics
+.env
+.env.local
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
