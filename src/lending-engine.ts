@@ -1,7 +1,7 @@
 import {BigDecimal, log} from "@graphprotocol/graph-ts";
 import {Borrowed, Repaid, DebtWrittenOff} from "../generated/LendingEngine/LendingEngine";
 import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Pool, Position} from "../generated/schema";
-import {borrowDecimals, poolId, toDecimal} from "./helpers/common";
+import {borrowDecimals, poolId, toDecimal, UNKNOWN_DECIMALS} from "./helpers/common";
 
 export function handleBorrowed(event: Borrowed): void {
     let id = event.params.positionId.toString();
@@ -70,8 +70,8 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
     // without the Position -> Pool hop.
     let pId = poolId(event.params.borrowAsset);
     let pool = Pool.load(pId);
-    if (pool == null) {
-        log.error("DebtWrittenOff: no indexed pool for borrow asset {} — event skipped", [
+    if (pool == null || pool.decimals == UNKNOWN_DECIMALS) {
+        log.error("DebtWrittenOff: no indexed pool, or unknown scale, for borrow asset {} — event skipped", [
             event.params.borrowAsset.toHex(),
         ]);
         return;

@@ -9,6 +9,12 @@ export const POSITION_VALUE_DECIMALS: u8 = 18;
 export const BPS_DECIMALS: u8 = 4;
 export const RATE_DECIMALS: u8 = 18;
 
+/**
+ * Pool.decimals when the borrow asset's decimals() reverted. Any amount denominated in that
+ * asset is unscalable, so callers must skip and log rather than guess — see borrowDecimals().
+ */
+export const UNKNOWN_DECIMALS: i32 = -1;
+
 // Pool entities are keyed by borrow asset. Everything that resolves a pool (PositionCreated,
 // DebtWrittenOff, the template context) goes through here so the casing can never diverge.
 export function poolId(borrowAsset: Address): string {
@@ -54,9 +60,10 @@ export function toDecimal(value: BigInt, decimals: i32): BigDecimal {
  */
 export function borrowDecimals(positionId: string): i32 {
     let p = Position.load(positionId);
-    if (p == null) return -1;
+    if (p == null) return UNKNOWN_DECIMALS;
     let pool = Pool.load(p.pool);
-    return pool == null ? -1 : pool.decimals;
+    // A pool whose decimals() reverted already stores UNKNOWN_DECIMALS, so it propagates as-is.
+    return pool == null ? UNKNOWN_DECIMALS : pool.decimals;
 }
 
 export function getOrCreateProtocolStats(): ProtocolStats {

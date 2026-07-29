@@ -1,7 +1,7 @@
 import {Address, BigDecimal, BigInt, dataSource, log} from "@graphprotocol/graph-ts";
 import {InterestAccrued, LendingPool, Supply, Withdraw} from "../generated/templates/LendingPool/LendingPool";
 import {Pool, SupplyPosition} from "../generated/schema";
-import {BPS_DECIMALS, RATE_DECIMALS, toDecimal} from "./helpers/common";
+import {BPS_DECIMALS, RATE_DECIMALS, toDecimal, UNKNOWN_DECIMALS} from "./helpers/common";
 
 // poolId is carried in the data source context (set when the template was created).
 function currentPoolId(): string {
@@ -19,6 +19,12 @@ function currentPoolId(): string {
  * all five fields self-correcting, at the cost of one eth_call per pool event.
  */
 function syncPoolState(pool: Pool, timestamp: BigInt): void {
+    // Scale unknown (decimals() reverted at registration) — totalSupply/totalBorrow cannot be
+    // converted to human units, and the rate fields are meaningless without them.
+    if (pool.decimals == UNKNOWN_DECIMALS) {
+        log.error("syncPoolState: pool {} has unknown borrow-asset scale — state not indexed", [pool.id]);
+        return;
+    }
     let res = LendingPool.bind(Address.fromBytes(pool.address)).try_getPoolState();
     if (res.reverted) {
         log.error("syncPoolState: getPoolState() reverted for pool {}", [pool.id]);

@@ -3,7 +3,7 @@ import {PoolRegistered, RiskManagerUpdated} from "../generated/ProtocolCore/Prot
 import {ERC20} from "../generated/ProtocolCore/ERC20";
 import {LendingPool as LendingPoolTemplate} from "../generated/templates";
 import {Pool} from "../generated/schema";
-import {poolId} from "./helpers/common";
+import {poolId, UNKNOWN_DECIMALS} from "./helpers/common";
 
 export function handlePoolRegistered(event: PoolRegistered): void {
     // registerPool() rejects a borrow asset that is already registered, so this can never
@@ -12,17 +12,22 @@ export function handlePoolRegistered(event: PoolRegistered): void {
     pool.address = event.params.pool;
     pool.borrowAsset = event.params.borrowAsset;
 
-    // Borrow-asset metadata (decimals/symbol) — read from the token. Decimals decide the scale
-    // of every borrow-side amount downstream, so a revert here is not something to paper over
-    // with a default; log it loudly. 18 is only a placeholder to satisfy the non-null field.
+    // Borrow-asset metadata (decimals/symbol) — read from the token. Decimals decide the scale of
+    // every borrow-side amount downstream, and core never calls decimals() itself, so a token
+    // without it can genuinely reach registerPool(). Defaulting to 18 would mis-scale a 6-dec
+    // asset by 1e12 and quietly poison the protocol-wide aggregates, so store -1 instead: the
+    // same "scale unknown" sentinel borrowDecimals() already returns, which every consumer of a
+    // borrow-side amount checks before it converts. The entity is still created so that
+    // Position.pool — a non-nullable reference — resolves.
     let erc = ERC20.bind(event.params.borrowAsset);
     let dec = erc.try_decimals();
     if (dec.reverted) {
-        log.error("PoolRegistered: decimals() reverted for borrow asset {} — defaulting to 18", [
-            event.params.borrowAsset.toHex(),
-        ]);
+        log.error(
+            "PoolRegistered: decimals() reverted for borrow asset {} — pool indexed with unknown scale, its amounts will be skipped",
+            [event.params.borrowAsset.toHex()],
+        );
     }
-    pool.decimals = dec.reverted ? 18 : dec.value;
+    pool.decimals = dec.reverted ? UNKNOWN_DECIMALS : dec.value;
     let sym = erc.try_symbol();
     pool.symbol = sym.reverted ? "?" : sym.value;
 
