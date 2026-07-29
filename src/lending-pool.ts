@@ -17,18 +17,22 @@ function currentPoolId(): string {
  * add-principal / subtract-principal-plus-interest accumulator therefore ratchets downwards
  * and converges to zero on a pool that is in fact fully funded. Reading getPoolState() makes
  * all five fields self-correcting, at the cost of one eth_call per pool event.
+ *
+ * Returns false when the refresh could not happen. Callers must not go on to derive anything
+ * from the pool: suppliedAmount is computed against pool.totalSupply, so a stale value there
+ * silently produces a wrong balance rather than no balance.
  */
-function syncPoolState(pool: Pool, timestamp: BigInt): void {
+function syncPoolState(pool: Pool, timestamp: BigInt): boolean {
     // Scale unknown (decimals() reverted at registration) — totalSupply/totalBorrow cannot be
     // converted to human units, and the rate fields are meaningless without them.
     if (pool.decimals == UNKNOWN_DECIMALS) {
         log.error("syncPoolState: pool {} has unknown borrow-asset scale — state not indexed", [pool.id]);
-        return;
+        return false;
     }
     let res = LendingPool.bind(Address.fromBytes(pool.address)).try_getPoolState();
     if (res.reverted) {
         log.error("syncPoolState: getPoolState() reverted for pool {}", [pool.id]);
-        return;
+        return false;
     }
     let st = res.value;
     pool.totalSupply = toDecimal(st.totalSupply, pool.decimals);
@@ -39,6 +43,7 @@ function syncPoolState(pool: Pool, timestamp: BigInt): void {
     pool.supplyRate = toDecimal(st.supplyRate, RATE_DECIMALS);
     pool.borrowRate = toDecimal(st.borrowRate, RATE_DECIMALS);
     pool.updatedAt = timestamp;
+    return true;
 }
 
 /**
@@ -80,7 +85,9 @@ function syncSupplyPosition(pool: Pool, supplier: Address, timestamp: BigInt): v
 export function handleSupply(event: Supply): void {
     let pool = Pool.load(currentPoolId());
     if (pool == null) return;
-    syncPoolState(pool, event.block.timestamp);
+    // Bail on a failed refresh rather than saving: syncSupplyPosition divides by
+    // pool.totalSupply, so a stale value would write a plausible-looking wrong balance.
+    if (!syncPoolState(pool, event.block.timestamp)) return;
     pool.save();
     syncSupplyPosition(pool, event.params.supplier, event.block.timestamp);
 }
@@ -88,7 +95,7 @@ export function handleSupply(event: Supply): void {
 export function handleWithdraw(event: Withdraw): void {
     let pool = Pool.load(currentPoolId());
     if (pool == null) return;
-    syncPoolState(pool, event.block.timestamp);
+    if (!syncPoolState(pool, event.block.timestamp)) return;
     pool.save();
     syncSupplyPosition(pool, event.params.supplier, event.block.timestamp);
 }
@@ -98,6 +105,6 @@ export function handleWithdraw(event: Withdraw): void {
 export function handleInterestAccrued(event: InterestAccrued): void {
     let pool = Pool.load(currentPoolId());
     if (pool == null) return;
-    syncPoolState(pool, event.block.timestamp);
+    if (!syncPoolState(pool, event.block.timestamp)) return;
     pool.save();
 }
