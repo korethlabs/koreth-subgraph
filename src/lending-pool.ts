@@ -47,8 +47,8 @@ function syncSupplyPosition(pool: Pool, supplier: Address, timestamp: BigInt): v
 export function handleSupply(event: Supply): void {
     let pool = Pool.load(currentPoolId());
     if (pool == null) return;
-    // Bail on a failed refresh rather than saving: syncSupplyPosition divides by
-    // pool.totalSupply, so a stale value would write a plausible-looking wrong balance.
+    // Bail on a failed refresh rather than saving: syncSupplyPosition scales the supplier's
+    // shares by pool.totalSupply, so a stale value would write a plausible-looking wrong balance.
     if (!syncPoolState(pool, event.block.timestamp)) return;
     syncSupplyPosition(pool, event.params.supplier, event.block.timestamp);
 }
