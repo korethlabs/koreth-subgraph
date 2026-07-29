@@ -77,21 +77,25 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
     // without the Position -> Pool hop.
     let pId = poolId(event.params.borrowAsset);
     let pool = Pool.load(pId);
-    if (pool == null || pool.decimals == UNKNOWN_DECIMALS) {
-        log.error("DebtWrittenOff: no indexed pool, or unknown scale, for borrow asset {} — event skipped", [
+    let scaled = pool != null && pool.decimals != UNKNOWN_DECIMALS;
+
+    // Only the write-off amount needs the borrow asset's scale. Zeroing the debt below does not,
+    // and it is the part that matters most: skipping it would leave a position whose debt was
+    // wiped on-chain reporting an outstanding balance forever.
+    if (scaled) {
+        let wo = new DebtWriteOffEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
+        wo.position = id;
+        wo.pool = pId;
+        wo.amount = toDecimal(event.params.amount, pool!.decimals);
+        wo.caller = event.params.caller;
+        wo.timestamp = event.block.timestamp;
+        wo.txHash = event.transaction.hash;
+        wo.save();
+    } else {
+        log.error("DebtWrittenOff: no indexed pool, or unknown scale, for borrow asset {} — amount not indexed", [
             event.params.borrowAsset.toHex(),
         ]);
-        return;
     }
-
-    let wo = new DebtWriteOffEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
-    wo.position = id;
-    wo.pool = pId;
-    wo.amount = toDecimal(event.params.amount, pool.decimals);
-    wo.caller = event.params.caller;
-    wo.timestamp = event.block.timestamp;
-    wo.txHash = event.transaction.hash;
-    wo.save();
 
     let position = Position.load(id);
     if (position != null) {
@@ -100,5 +104,5 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
         position.save();
     }
 
-    syncPoolState(pool, event.block.timestamp);
+    if (scaled) syncPoolState(pool!, event.block.timestamp);
 }

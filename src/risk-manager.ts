@@ -1,4 +1,4 @@
-import {BigDecimal, BigInt} from "@graphprotocol/graph-ts";
+import {BigDecimal, BigInt, log} from "@graphprotocol/graph-ts";
 import {
     RiskManager,
     CollateralConfigSet,
@@ -35,7 +35,14 @@ export function handleCollateralConfigSet(event: CollateralConfigSet): void {
     let ct = getOrCreateCollateralType(lpType);
 
     let res = RiskManager.bind(event.address).try_getCollateralConfig(lpType);
-    if (!res.reverted) {
+    if (res.reverted) {
+        // The event fired, so the config *did* change — we just can't see the new values. The
+        // entity keeps its previous params (or the zero defaults, which read as disabled), so
+        // this has to be loud: silently serving superseded LTV/threshold is the worst outcome.
+        log.error("CollateralConfigSet: getCollateralConfig() reverted for {} — risk params left stale", [
+            ct.id,
+        ]);
+    } else {
         ct.maxLtv = res.value.maxLtv;
         ct.liquidationThreshold = res.value.liquidationThreshold;
         ct.liquidationBonus = res.value.liquidationBonus;

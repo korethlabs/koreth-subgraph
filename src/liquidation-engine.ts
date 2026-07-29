@@ -8,24 +8,26 @@ export function handleLiquidationExecuted(event: LiquidationExecuted): void {
     let id = event.params.positionId.toString();
     let seized = toDecimal(event.params.collateralSeized, POSITION_VALUE_DECIMALS); // 18-dec USD
 
+    // Only repayAmount is denominated in the borrow asset. The collateral figures below are
+    // 18-dec oracle USD and the liquidation count is scale-free, so an unresolvable pool costs
+    // us the LiquidationEvent — not TVL, which would otherwise drift permanently upward.
     let pool = positionPool(id);
-    if (pool == null) {
-        log.error("LiquidationExecuted: cannot resolve pool or borrow-asset scale for position {} — event skipped", [
-            id,
-        ]);
-        return;
+    if (pool != null) {
+        let le = new LiquidationEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
+        le.position = id;
+        le.liquidator = event.params.liquidator;
+        le.repayAmount = toDecimal(event.params.repayAmount, pool.decimals); // borrow asset
+        le.collateralSeized = seized;
+        le.liquidatorProfit = toDecimal(event.params.liquidatorProfit, POSITION_VALUE_DECIMALS); // always 0
+        le.timestamp = event.block.timestamp;
+        le.txHash = event.transaction.hash;
+        le.save();
+    } else {
+        log.error(
+            "LiquidationExecuted: cannot resolve pool or borrow-asset scale for position {} — LiquidationEvent skipped",
+            [id],
+        );
     }
-    let dec = pool.decimals;
-
-    let le = new LiquidationEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
-    le.position = id;
-    le.liquidator = event.params.liquidator;
-    le.repayAmount = toDecimal(event.params.repayAmount, dec); // borrow asset
-    le.collateralSeized = seized;
-    le.liquidatorProfit = toDecimal(event.params.liquidatorProfit, POSITION_VALUE_DECIMALS); // always 0
-    le.timestamp = event.block.timestamp;
-    le.txHash = event.transaction.hash;
-    le.save();
 
     let stats = getOrCreateProtocolStats();
     stats.totalLiquidations = stats.totalLiquidations.plus(BigInt.fromI32(1));
@@ -47,5 +49,5 @@ export function handleLiquidationExecuted(event: LiquidationExecuted): void {
     stats.save();
 
     // The repay leg moved the pool's totalBorrow and rates.
-    syncPoolState(pool, event.block.timestamp);
+    if (pool != null) syncPoolState(pool, event.block.timestamp);
 }
