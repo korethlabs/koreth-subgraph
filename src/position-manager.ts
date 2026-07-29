@@ -63,13 +63,22 @@ export function handlePositionClosed(event: PositionClosed): void {
     }
 }
 
+// Emitted by markLiquidated(), which LiquidationEngine only calls when the position is being
+// wound up entirely — the seized collateral goes to the liquidator and any remainder is returned
+// to the borrower. So the whole remaining depositValue leaves the protocol here.
+//
+// This fires BEFORE LiquidationExecuted in the same transaction. handleLiquidationExecuted
+// therefore checks for this status and skips its own TVL adjustment, otherwise the seized
+// portion would be subtracted twice.
 export function handlePositionLiquidated(event: PositionLiquidated): void {
     let position = Position.load(event.params.positionId.toString());
     if (position != null) {
         let stats = getOrCreateProtocolStats();
         stats.totalTVL = stats.totalTVL.minus(position.depositValue);
+        if (stats.totalTVL.lt(BigDecimal.zero())) stats.totalTVL = BigDecimal.zero();
         stats.save();
 
+        position.depositValue = BigDecimal.zero();
         position.status = "liquidated";
         position.updatedAt = event.block.timestamp;
         position.save();

@@ -7,12 +7,17 @@ schema:
 # `graph build/deploy --network mainnet` (see `pnpm prepare-local` / `pnpm deploy-local`).
 # Keep the placeholders below at 0x0 / 0 in git.
 dataSources:
+  # Pools are indexed off ProtocolCore rather than PoolFactory. registerPool() is the single
+  # chokepoint every pool passes through — the factory calls it too — and it enforces
+  # `pool.borrowAsset() == borrowAsset`, so a Pool entity can never be missing or mis-keyed.
+  # Indexing PoolFactory.PoolCreated instead would miss pools a PoolAdmin registers directly,
+  # and would go blind entirely if setPoolFactory() re-pointed the factory.
   - kind: ethereum
-    name: PoolFactory
+    name: ProtocolCore
     network: mainnet
     source:
       address: "0x0000000000000000000000000000000000000000"
-      abi: PoolFactory
+      abi: ProtocolCore
       startBlock: 0
     mapping:
       kind: ethereum/events
@@ -21,16 +26,21 @@ dataSources:
       entities:
         - Pool
       abis:
-        - name: PoolFactory
-          file: ./abis/PoolFactory.json
+        - name: ProtocolCore
+          file: ./abis/ProtocolCore.json
         - name: LendingPool
           file: ./abis/LendingPool.json
         - name: ERC20
           file: ./abis/ERC20.json
       eventHandlers:
-        - event: PoolCreated(indexed address,address,address)
-          handler: handlePoolCreated
-      file: ./src/pool-factory.ts
+        - event: PoolRegistered(indexed address,indexed address)
+          handler: handlePoolRegistered
+        # Swapping the RiskManager silently invalidates CollateralType.currentBorrows and
+        # ProtocolStats.globalBorrowsUsd, which are accumulated from its events and have no
+        # self-correcting read. Indexed purely so the break is visible in the logs.
+        - event: RiskManagerUpdated(indexed address,indexed address)
+          handler: handleRiskManagerUpdated
+      file: ./src/protocol-core.ts
 
   # Risk params are no longer per-market; they live here, keyed by LP type, and apply to
   # every pool at once.
@@ -142,8 +152,8 @@ dataSources:
           handler: handleLiquidationExecuted
       file: ./src/liquidation-engine.ts
 
-# Pool proxies are created at runtime by PoolFactory; this template is instantiated (with the
-# borrow asset in its context) from handlePoolCreated to index each pool's Supply/Withdraw.
+# Pool proxies are deployed at runtime, so they are indexed via a template instantiated (with
+# the pool id in its context) from handlePoolRegistered.
 templates:
   - kind: ethereum
     name: LendingPool
@@ -165,4 +175,8 @@ templates:
           handler: handleSupply
         - event: Withdraw(indexed address,uint256,uint256)
           handler: handleWithdraw
+        # accrueInterest() credits lenders by mutating totalSupply directly, so without this
+        # the pool's liquidity and rate fields would only ever refresh on user activity.
+        - event: InterestAccrued(uint256,uint256,uint256,uint256)
+          handler: handleInterestAccrued
       file: ./src/lending-pool.ts

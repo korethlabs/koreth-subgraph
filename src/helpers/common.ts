@@ -4,6 +4,11 @@ import {Pool, Position, ProtocolStats} from "../../generated/schema";
 // Oracle position values and RiskManager's USD exposure figures are both 18-dec.
 export const POSITION_VALUE_DECIMALS: u8 = 18;
 
+// InterestRateModel expresses utilization and risk params in basis points, and per-second
+// interest rates as 18-dec fixed point.
+export const BPS_DECIMALS: u8 = 4;
+export const RATE_DECIMALS: u8 = 18;
+
 // Pool entities are keyed by borrow asset. Everything that resolves a pool (PositionCreated,
 // DebtWrittenOff, the template context) goes through here so the casing can never diverge.
 export function poolId(borrowAsset: Address): string {
@@ -35,14 +40,20 @@ export function toDecimal(value: BigInt, decimals: i32): BigDecimal {
     return value.toBigDecimal().div(exponentToBigDecimal(decimals));
 }
 
-// Borrow/repay/liquidation amounts are denominated in the borrow asset of the position's pool,
-// so their scale can only be resolved by hopping Position -> Pool. Falls back to 6 (USDC) if
-// either is missing, which can only happen if an event is indexed before its pool was created.
+/**
+ * Scale of the borrow-asset amounts on a position's events, resolved by hopping
+ * Position -> Pool. Returns -1 when either is missing.
+ *
+ * There is deliberately no default. Pools exist per borrow asset, so DAI/WETH pools are 18-dec
+ * while USDC/USDT are 6-dec: guessing is wrong by a factor of 1e12, and these amounts feed the
+ * protocol-wide ProtocolStats aggregates, so one bad guess corrupts a global figure rather than
+ * just its own subtree. Callers must treat -1 as "skip this event".
+ */
 export function borrowDecimals(positionId: string): i32 {
     let p = Position.load(positionId);
-    if (p == null) return 6;
+    if (p == null) return -1;
     let pool = Pool.load(p.pool);
-    return pool == null ? 6 : pool.decimals;
+    return pool == null ? -1 : pool.decimals;
 }
 
 export function getOrCreateProtocolStats(): ProtocolStats {
@@ -50,7 +61,6 @@ export function getOrCreateProtocolStats(): ProtocolStats {
     if (stats == null) {
         stats = new ProtocolStats("1");
         stats.totalTVL = BigDecimal.zero();
-        stats.totalBorrowed = BigDecimal.zero();
         stats.totalPositions = BigInt.zero();
         stats.totalLiquidations = BigInt.zero();
         stats.totalFeesCollected = BigDecimal.zero();

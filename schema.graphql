@@ -36,11 +36,14 @@ type Pool @entity {
   borrowAsset: Bytes!
   symbol: String!
   decimals: Int!
-  totalSupply: BigDecimal!
-  totalBorrow: BigDecimal!
-  utilization: BigDecimal!
-  supplyRate: BigDecimal!
-  borrowRate: BigDecimal!
+  # Read from LendingPool.getPoolState() on every event that touches the pool, never
+  # accumulated — interest accrual moves totalSupply without emitting a Supply/Withdraw, so an
+  # accumulator would drift permanently.
+  totalSupply: BigDecimal! # human units of borrowAsset
+  totalBorrow: BigDecimal! # human units of borrowAsset
+  utilization: BigDecimal! # fraction, 0.8 = 80%
+  supplyRate: BigDecimal! # per-second rate as a fraction
+  borrowRate: BigDecimal! # per-second rate as a fraction
   positions: [Position!]! @derivedFrom(field: "pool")
   supplyPositions: [SupplyPosition!]! @derivedFrom(field: "pool")
   createdAt: BigInt!
@@ -69,8 +72,10 @@ type SupplyPosition @entity {
   id: ID! # poolId-user
   pool: Pool!
   user: Bytes!
+  # Both read from the pool's own share accounting rather than accumulated, so suppliedAmount
+  # includes accrued interest: shares * pool.totalSupply / totalShares.
   shares: BigInt!
-  suppliedAmount: BigDecimal! # cumulative net supplied, human units
+  suppliedAmount: BigDecimal! # redeemable value in human units of borrowAsset
   updatedAt: BigInt!
 }
 
@@ -117,12 +122,13 @@ type DebtWriteOffEvent @entity(immutable: true) {
 
 type ProtocolStats @entity {
   id: ID!
-  totalTVL: BigDecimal!
-  totalBorrowed: BigDecimal!
+  totalTVL: BigDecimal! # USD
   totalPositions: BigInt!
   totalLiquidations: BigInt!
   totalFeesCollected: BigDecimal!
   # Protocol-wide USD borrows as reported by RiskManager, which is the figure the global
-  # borrow cap is actually checked against.
+  # borrow cap is actually checked against. This replaces the old `totalBorrowed`, which summed
+  # human units across borrow assets — adding USDC to WETH — and so was meaningless as soon as
+  # a second pool existed. For a per-asset figure use Pool.totalBorrow.
   globalBorrowsUsd: BigDecimal!
 }

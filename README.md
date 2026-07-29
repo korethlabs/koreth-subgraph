@@ -9,12 +9,17 @@ query protocol state without RPC fan-out.
 
 | Source                   | Events                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `PoolFactory`            | `PoolCreated` (spawns a `LendingPool` template per proxy)                                        |
+| `ProtocolCore`           | `PoolRegistered` (spawns a `LendingPool` template per proxy), `RiskManagerUpdated`               |
 | `RiskManager`            | `CollateralConfigSet`, `LPTypeBorrowCapUpdated`, `Borrow`/`Accrual`/`RepayRecorded`              |
 | `PositionManager`        | `PositionCreated`, `PositionClosed`, `PositionLiquidated`                                        |
 | `LendingEngine`          | `Borrowed`, `Repaid`, `DebtWrittenOff`                                                           |
 | `LiquidationEngine`      | `LiquidationExecuted`                                                                            |
-| `LendingPool` (template) | `Supply`, `Withdraw`                                                                             |
+| `LendingPool` (template) | `Supply`, `Withdraw`, `InterestAccrued`                                                          |
+
+Pools come from `ProtocolCore.PoolRegistered`, not `PoolFactory.PoolCreated`: `registerPool()` is
+the single chokepoint every pool passes through — the factory calls it too — and it enforces
+`pool.borrowAsset() == borrowAsset`. Indexing the factory instead would miss pools a `PoolAdmin`
+registers directly, and would go blind entirely if `setPoolFactory()` re-pointed the factory.
 
 ## Shared-pool model
 
@@ -32,8 +37,23 @@ to and is unrelated to `pool`.
 `RepayRecorded` events, which each carry the per-type USD delta, so per-collateral exposure never
 requires a contract read.
 
-`DebtWrittenOff` (bad-debt socialization) zeroes the position's `currentDebt`, records a
-`DebtWriteOffEvent`, and removes the written-off amount from `ProtocolStats.totalBorrowed`.
+`DebtWrittenOff` (bad-debt socialization) zeroes the position's `currentDebt` and records a
+`DebtWriteOffEvent`.
+
+### Read, don't accumulate
+
+`Pool`'s liquidity/rate fields and `SupplyPosition`'s share fields are read from
+`LendingPool.getPoolState()` / `shares()` / `totalShares()` on every event that touches the pool,
+rather than accumulated from event params. `accrueInterest()` credits lenders by mutating
+`totalSupply` directly, and `withdraw()` emits an `amount` that already includes the withdrawer's
+share of that interest — so an accumulator adds principal but subtracts principal-plus-interest and
+drifts towards zero on a pool that is actually fully funded. Reading costs one `eth_call` per pool
+event and makes every field self-correcting.
+
+Amounts denominated in a borrow asset (`Borrowed`, `Repaid`, `LiquidationExecuted`) resolve their
+scale via `Position -> Pool`. There is no fallback: pools are per borrow asset, so guessing between
+a 6-dec USDC pool and an 18-dec WETH pool is wrong by `1e12`, and these amounts feed protocol-wide
+aggregates. If the scale can't be resolved the event is skipped and logged.
 
 ## ABIs
 

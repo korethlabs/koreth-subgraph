@@ -1,56 +1,97 @@
-import {BigDecimal, BigInt, dataSource} from "@graphprotocol/graph-ts";
-import {Supply, Withdraw} from "../generated/templates/LendingPool/LendingPool";
+import {Address, BigDecimal, BigInt, dataSource, log} from "@graphprotocol/graph-ts";
+import {InterestAccrued, LendingPool, Supply, Withdraw} from "../generated/templates/LendingPool/LendingPool";
 import {Pool, SupplyPosition} from "../generated/schema";
-import {toDecimal} from "./helpers/common";
+import {BPS_DECIMALS, RATE_DECIMALS, toDecimal} from "./helpers/common";
 
 // poolId is carried in the data source context (set when the template was created).
 function currentPoolId(): string {
     return dataSource.context().getString("poolId");
 }
 
-export function handleSupply(event: Supply): void {
-    let pId = currentPoolId();
-    let pool = Pool.load(pId);
-    if (pool == null) return;
+/**
+ * Refresh the pool's liquidity and rate fields from the contract.
+ *
+ * These are read rather than accumulated, deliberately. accrueInterest() credits lenders by
+ * mutating totalSupply directly and emits only InterestAccrued, while withdraw() emits an
+ * `amount` that already includes the withdrawer's share of that interest. An
+ * add-principal / subtract-principal-plus-interest accumulator therefore ratchets downwards
+ * and converges to zero on a pool that is in fact fully funded. Reading getPoolState() makes
+ * all five fields self-correcting, at the cost of one eth_call per pool event.
+ */
+function syncPoolState(pool: Pool, timestamp: BigInt): void {
+    let res = LendingPool.bind(Address.fromBytes(pool.address)).try_getPoolState();
+    if (res.reverted) {
+        log.error("syncPoolState: getPoolState() reverted for pool {}", [pool.id]);
+        return;
+    }
+    let st = res.value;
+    pool.totalSupply = toDecimal(st.totalSupply, pool.decimals);
+    pool.totalBorrow = toDecimal(st.totalBorrow, pool.decimals);
+    // InterestRateModel takes and returns utilization in bps (0-10000) and rates as 18-dec
+    // per-second figures. Both are normalised to plain fractions here.
+    pool.utilization = toDecimal(st.utilization, BPS_DECIMALS);
+    pool.supplyRate = toDecimal(st.supplyRate, RATE_DECIMALS);
+    pool.borrowRate = toDecimal(st.borrowRate, RATE_DECIMALS);
+    pool.updatedAt = timestamp;
+}
 
-    let amount = toDecimal(event.params.amount, pool.decimals);
-    pool.totalSupply = pool.totalSupply.plus(amount);
-    pool.updatedAt = event.block.timestamp;
-    pool.save();
+/**
+ * Rewrite a supplier's position from the pool's own share accounting.
+ *
+ * `shares` is authoritative on-chain, and the redeemable value is shares * totalSupply /
+ * totalShares — which tracks accrued interest for free. Accumulating the Supply/Withdraw
+ * `amount` params instead would report principal only, and would drift permanently once
+ * interest accrues. Note totalShares includes the DEAD_SHARES minted on first supply, which is
+ * exactly what makes this ratio correct.
+ */
+function syncSupplyPosition(pool: Pool, supplier: Address, timestamp: BigInt): void {
+    let bound = LendingPool.bind(Address.fromBytes(pool.address));
+    let sharesRes = bound.try_shares(supplier);
+    let totalSharesRes = bound.try_totalShares();
+    if (sharesRes.reverted || totalSharesRes.reverted) {
+        log.error("syncSupplyPosition: share reads reverted for pool {} supplier {}", [
+            pool.id,
+            supplier.toHex(),
+        ]);
+        return;
+    }
 
-    let id = pId + "-" + event.params.supplier.toHex();
+    let id = pool.id + "-" + supplier.toHex();
     let sp = SupplyPosition.load(id);
     if (sp == null) {
         sp = new SupplyPosition(id);
-        sp.pool = pId;
-        sp.user = event.params.supplier;
-        sp.shares = BigInt.zero();
-        sp.suppliedAmount = BigDecimal.zero();
+        sp.pool = pool.id;
+        sp.user = supplier;
     }
-    sp.shares = sp.shares.plus(event.params.shares);
-    sp.suppliedAmount = sp.suppliedAmount.plus(amount);
-    sp.updatedAt = event.block.timestamp;
+    sp.shares = sharesRes.value;
+    sp.suppliedAmount = totalSharesRes.value.isZero()
+        ? BigDecimal.zero()
+        : pool.totalSupply.times(sharesRes.value.toBigDecimal()).div(totalSharesRes.value.toBigDecimal());
+    sp.updatedAt = timestamp;
     sp.save();
 }
 
-export function handleWithdraw(event: Withdraw): void {
-    let pId = currentPoolId();
-    let pool = Pool.load(pId);
+export function handleSupply(event: Supply): void {
+    let pool = Pool.load(currentPoolId());
     if (pool == null) return;
-
-    let amount = toDecimal(event.params.amount, pool.decimals);
-    pool.totalSupply = pool.totalSupply.minus(amount);
-    if (pool.totalSupply.lt(BigDecimal.zero())) pool.totalSupply = BigDecimal.zero();
-    pool.updatedAt = event.block.timestamp;
+    syncPoolState(pool, event.block.timestamp);
     pool.save();
+    syncSupplyPosition(pool, event.params.supplier, event.block.timestamp);
+}
 
-    let id = pId + "-" + event.params.supplier.toHex();
-    let sp = SupplyPosition.load(id);
-    if (sp == null) return;
-    sp.shares = sp.shares.minus(event.params.shares);
-    if (sp.shares.lt(BigInt.zero())) sp.shares = BigInt.zero();
-    sp.suppliedAmount = sp.suppliedAmount.minus(amount);
-    if (sp.suppliedAmount.lt(BigDecimal.zero())) sp.suppliedAmount = BigDecimal.zero();
-    sp.updatedAt = event.block.timestamp;
-    sp.save();
+export function handleWithdraw(event: Withdraw): void {
+    let pool = Pool.load(currentPoolId());
+    if (pool == null) return;
+    syncPoolState(pool, event.block.timestamp);
+    pool.save();
+    syncSupplyPosition(pool, event.params.supplier, event.block.timestamp);
+}
+
+// Interest accrual moves totalSupply, totalBorrow and utilization without any user action, so
+// this is the only event that keeps a quiet pool's figures honest.
+export function handleInterestAccrued(event: InterestAccrued): void {
+    let pool = Pool.load(currentPoolId());
+    if (pool == null) return;
+    syncPoolState(pool, event.block.timestamp);
+    pool.save();
 }
