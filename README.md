@@ -44,7 +44,11 @@ requires a contract read.
 
 `Pool`'s liquidity/rate fields and `SupplyPosition`'s share fields are read from
 `LendingPool.getPoolState()` / `shares()` / `totalShares()` on every event that touches the pool,
-rather than accumulated from event params. `accrueInterest()` credits lenders by mutating
+rather than accumulated from event params. "Every event" includes the `LendingEngine` and
+`LiquidationEngine` ones, not just the pool's own `Supply` / `Withdraw` / `InterestAccrued`:
+borrow, repay, write-off and liquidation all move `totalBorrow` and the rates, and
+`accrueInterest()` returns *without* emitting `InterestAccrued` when `totalBorrow` is still 0 or
+when it already ran in that block — which is exactly what the first borrow against a pool does. `accrueInterest()` credits lenders by mutating
 `totalSupply` directly, and `withdraw()` emits an `amount` that already includes the withdrawer's
 share of that interest — so an accumulator adds principal but subtracts principal-plus-interest and
 drifts towards zero on a pool that is actually fully funded. Reading costs one `eth_call` per pool

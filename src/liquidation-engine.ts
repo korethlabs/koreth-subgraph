@@ -1,17 +1,21 @@
 import {BigDecimal, BigInt, log} from "@graphprotocol/graph-ts";
 import {LiquidationExecuted} from "../generated/LiquidationEngine/LiquidationEngine";
 import {LiquidationEvent, Position} from "../generated/schema";
-import {borrowDecimals, getOrCreateProtocolStats, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
+import {getOrCreateProtocolStats, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
+import {positionPool, syncPoolState} from "./helpers/pool";
 
 export function handleLiquidationExecuted(event: LiquidationExecuted): void {
     let id = event.params.positionId.toString();
     let seized = toDecimal(event.params.collateralSeized, POSITION_VALUE_DECIMALS); // 18-dec USD
 
-    let dec = borrowDecimals(id);
-    if (dec < 0) {
-        log.error("LiquidationExecuted: cannot resolve borrow-asset decimals for position {} — event skipped", [id]);
+    let pool = positionPool(id);
+    if (pool == null) {
+        log.error("LiquidationExecuted: cannot resolve pool or borrow-asset scale for position {} — event skipped", [
+            id,
+        ]);
         return;
     }
+    let dec = pool.decimals;
 
     let le = new LiquidationEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
     le.position = id;
@@ -41,4 +45,7 @@ export function handleLiquidationExecuted(event: LiquidationExecuted): void {
         if (stats.totalTVL.lt(BigDecimal.zero())) stats.totalTVL = BigDecimal.zero();
     }
     stats.save();
+
+    // The repay leg moved the pool's totalBorrow and rates.
+    syncPoolState(pool, event.block.timestamp);
 }

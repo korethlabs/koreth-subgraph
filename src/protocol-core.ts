@@ -16,9 +16,9 @@ export function handlePoolRegistered(event: PoolRegistered): void {
     // every borrow-side amount downstream, and core never calls decimals() itself, so a token
     // without it can genuinely reach registerPool(). Defaulting to 18 would mis-scale a 6-dec
     // asset by 1e12 and quietly poison the protocol-wide aggregates, so store -1 instead: the
-    // same "scale unknown" sentinel borrowDecimals() already returns, which every consumer of a
-    // borrow-side amount checks before it converts. The entity is still created so that
-    // Position.pool — a non-nullable reference — resolves.
+    // "scale unknown" sentinel, which positionPool() turns into a null so every consumer of a
+    // borrow-side amount skips the event instead of converting. The entity is still created so
+    // that Position.pool — a non-nullable reference — resolves.
     let erc = ERC20.bind(event.params.borrowAsset);
     let dec = erc.try_decimals();
     if (dec.reverted) {

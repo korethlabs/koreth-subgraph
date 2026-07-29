@@ -1,15 +1,17 @@
 import {BigDecimal, log} from "@graphprotocol/graph-ts";
 import {Borrowed, Repaid, DebtWrittenOff} from "../generated/LendingEngine/LendingEngine";
 import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Pool, Position} from "../generated/schema";
-import {borrowDecimals, poolId, toDecimal, UNKNOWN_DECIMALS} from "./helpers/common";
+import {poolId, toDecimal, UNKNOWN_DECIMALS} from "./helpers/common";
+import {positionPool, syncPoolState} from "./helpers/pool";
 
 export function handleBorrowed(event: Borrowed): void {
     let id = event.params.positionId.toString();
-    let dec = borrowDecimals(id);
-    if (dec < 0) {
-        log.error("Borrowed: cannot resolve borrow-asset decimals for position {} — event skipped", [id]);
+    let pool = positionPool(id);
+    if (pool == null) {
+        log.error("Borrowed: cannot resolve pool or borrow-asset scale for position {} — event skipped", [id]);
         return;
     }
+    let dec = pool.decimals;
     let amount = toDecimal(event.params.amount, dec);
     let totalDebt = toDecimal(event.params.totalDebt, dec);
 
@@ -29,15 +31,18 @@ export function handleBorrowed(event: Borrowed): void {
         position.updatedAt = event.block.timestamp;
         position.save();
     }
+
+    syncPoolState(pool, event.block.timestamp);
 }
 
 export function handleRepaid(event: Repaid): void {
     let id = event.params.positionId.toString();
-    let dec = borrowDecimals(id);
-    if (dec < 0) {
-        log.error("Repaid: cannot resolve borrow-asset decimals for position {} — event skipped", [id]);
+    let pool = positionPool(id);
+    if (pool == null) {
+        log.error("Repaid: cannot resolve pool or borrow-asset scale for position {} — event skipped", [id]);
         return;
     }
+    let dec = pool.decimals;
     let amount = toDecimal(event.params.amount, dec);
     let remainingDebt = toDecimal(event.params.remainingDebt, dec);
 
@@ -59,6 +64,8 @@ export function handleRepaid(event: Repaid): void {
         position.updatedAt = event.block.timestamp;
         position.save();
     }
+
+    syncPoolState(pool, event.block.timestamp);
 }
 
 // Bad-debt socialization: LiquidationEngine writes off a position's full remaining debt,
@@ -92,4 +99,6 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
         position.updatedAt = event.block.timestamp;
         position.save();
     }
+
+    syncPoolState(pool, event.block.timestamp);
 }
