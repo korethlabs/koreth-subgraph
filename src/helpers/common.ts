@@ -15,7 +15,10 @@ export function poolId(borrowAsset: Address): string {
     return borrowAsset.toHex();
 }
 
-// ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol)
+// ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol).
+// This doubles as the CollateralType entity id, so the fallback keeps the numeric value: if core
+// adds a seventh LP type before the subgraph is redeployed, a bare "Unknown" would merge every
+// unrecognised type into one entity and scramble its risk params and currentBorrows.
 export function lpTypeName(lpType: i32): string {
     if (lpType == 0) return "UniswapV2";
     if (lpType == 1) return "UniswapV3";
@@ -23,7 +26,7 @@ export function lpTypeName(lpType: i32): string {
     if (lpType == 3) return "Aerodrome";
     if (lpType == 4) return "PancakeSwapV2";
     if (lpType == 5) return "PancakeSwapV3";
-    return "Unknown";
+    return "Unknown-" + lpType.toString();
 }
 
 export function exponentToBigDecimal(decimals: i32): BigDecimal {

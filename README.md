@@ -10,7 +10,7 @@ query protocol state without RPC fan-out.
 | Source                   | Events                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------- |
 | `ProtocolCore`           | `PoolRegistered` (spawns a `LendingPool` template per proxy), `RiskManagerUpdated`               |
-| `RiskManager`            | `CollateralConfigSet`, `LPTypeBorrowCapUpdated`, `Borrow`/`Accrual`/`RepayRecorded`              |
+| `RiskManager`            | `CollateralConfigSet`, `LPTypeBorrowCapUpdated`, `BorrowRecorded`, `AccrualRecorded`, `RepayRecorded` |
 | `PositionManager`        | `PositionCreated`, `PositionClosed`, `PositionLiquidated`                                        |
 | `LendingEngine`          | `Borrowed`, `Repaid`, `DebtWrittenOff`                                                           |
 | `LiquidationEngine`      | `LiquidationExecuted`                                                                            |
