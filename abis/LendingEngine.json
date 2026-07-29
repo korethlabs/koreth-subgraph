@@ -48,9 +48,9 @@
     "name": "accrueInterest",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "borrowAsset",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -347,10 +347,10 @@
         "internalType": "uint256"
       },
       {
-        "name": "marketId",
-        "type": "uint256",
+        "name": "borrowAsset",
+        "type": "address",
         "indexed": true,
-        "internalType": "uint256"
+        "internalType": "address"
       },
       {
         "name": "amount",

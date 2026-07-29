@@ -12,7 +12,11 @@
       "address": "0x0000000000000000000000000000000000000000",
       "startBlock": 0
     },
-    "MarketFactory": {
+    "PoolFactory": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "RiskManager": {
       "address": "0x0000000000000000000000000000000000000000",
       "startBlock": 0
     }

@@ -1,9 +1,14 @@
-import {BigDecimal, BigInt} from "@graphprotocol/graph-ts";
-import {ProtocolStats} from "../../generated/schema";
+import {Address, BigDecimal, BigInt} from "@graphprotocol/graph-ts";
+import {Pool, Position, ProtocolStats} from "../../generated/schema";
 
-// Oracle position values are 18-dec USD; the borrow asset on the seeded market is USDC (6-dec).
+// Oracle position values and RiskManager's USD exposure figures are both 18-dec.
 export const POSITION_VALUE_DECIMALS: u8 = 18;
-export const BORROW_DECIMALS: u8 = 6;
+
+// Pool entities are keyed by borrow asset. Everything that resolves a pool (PositionCreated,
+// DebtWrittenOff, the template context) goes through here so the casing can never diverge.
+export function poolId(borrowAsset: Address): string {
+    return borrowAsset.toHex();
+}
 
 // ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol)
 export function lpTypeName(lpType: i32): string {
@@ -30,6 +35,16 @@ export function toDecimal(value: BigInt, decimals: i32): BigDecimal {
     return value.toBigDecimal().div(exponentToBigDecimal(decimals));
 }
 
+// Borrow/repay/liquidation amounts are denominated in the borrow asset of the position's pool,
+// so their scale can only be resolved by hopping Position -> Pool. Falls back to 6 (USDC) if
+// either is missing, which can only happen if an event is indexed before its pool was created.
+export function borrowDecimals(positionId: string): i32 {
+    let p = Position.load(positionId);
+    if (p == null) return 6;
+    let pool = Pool.load(p.pool);
+    return pool == null ? 6 : pool.decimals;
+}
+
 export function getOrCreateProtocolStats(): ProtocolStats {
     let stats = ProtocolStats.load("1");
     if (stats == null) {
@@ -39,6 +54,7 @@ export function getOrCreateProtocolStats(): ProtocolStats {
         stats.totalPositions = BigInt.zero();
         stats.totalLiquidations = BigInt.zero();
         stats.totalFeesCollected = BigDecimal.zero();
+        stats.globalBorrowsUsd = BigDecimal.zero();
     }
     return stats;
 }

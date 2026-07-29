@@ -6,7 +6,7 @@ import {
     PositionManager
 } from "../generated/PositionManager/PositionManager";
 import {Position} from "../generated/schema";
-import {getOrCreateProtocolStats, lpTypeName, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
+import {getOrCreateProtocolStats, lpTypeName, poolId, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
 
 export function handlePositionCreated(event: PositionCreated): void {
     let id = event.params.positionId.toString();
@@ -22,22 +22,24 @@ export function handlePositionCreated(event: PositionCreated): void {
     position.depositTimestamp = event.block.timestamp;
     position.updatedAt = event.block.timestamp;
 
-    // Enrich pool/token0/token1/amount/marketId from the on-chain struct
-    // (PositionCreated does not carry them).
+    // Both protocol-side links come straight off the event: the shared pool is identified by
+    // its borrow asset, and risk params are keyed by LP type.
+    position.pool = poolId(event.params.borrowAsset);
+    position.collateralType = lpTypeName(event.params.lpType);
+
+    // The AMM-side fields still need the on-chain struct — PositionCreated does not carry them.
     let pm = PositionManager.bind(event.address);
     let res = pm.try_getPosition(event.params.positionId);
     if (!res.reverted) {
-        position.pool = res.value.pool;
+        position.lpPool = res.value.pool;
         position.token0 = res.value.token0;
         position.token1 = res.value.token1;
         position.amount = res.value.amount;
-        position.market = res.value.marketId.toString();
     } else {
         // Satisfy non-null schema fields if the call ever reverts.
-        position.pool = Address.zero();
+        position.lpPool = Address.zero();
         position.token0 = Address.zero();
         position.token1 = Address.zero();
-        position.market = "0";
     }
     position.save();
 

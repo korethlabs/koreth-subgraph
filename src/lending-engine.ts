@@ -1,15 +1,7 @@
 import {BigDecimal} from "@graphprotocol/graph-ts";
 import {Borrowed, Repaid, DebtWrittenOff} from "../generated/LendingEngine/LendingEngine";
-import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Position, Market} from "../generated/schema";
-import {getOrCreateProtocolStats, toDecimal} from "./helpers/common";
-
-// Borrow amounts are denominated in the position's market borrow asset — resolve its decimals.
-function borrowDecimals(positionId: string): i32 {
-    let p = Position.load(positionId);
-    if (p == null) return 6;
-    let m = Market.load(p.market);
-    return m == null ? 6 : m.decimals;
-}
+import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Position} from "../generated/schema";
+import {borrowDecimals, getOrCreateProtocolStats, poolId, toDecimal} from "./helpers/common";
 
 export function handleBorrowed(event: Borrowed): void {
     let id = event.params.positionId.toString();
@@ -73,8 +65,8 @@ export function handleRepaid(event: Repaid): void {
 }
 
 // Bad-debt socialization: LiquidationEngine writes off a position's full remaining debt,
-// zeroing its debt and recording a market deficit. Mirror that here — clear currentDebt
-// and remove the written-off amount from protocol totalBorrowed.
+// zeroing its debt and recording a deficit on the shared pool. Mirror that here — clear
+// currentDebt and remove the written-off amount from protocol totalBorrowed.
 export function handleDebtWrittenOff(event: DebtWrittenOff): void {
     let id = event.params.positionId.toString();
     let dec = borrowDecimals(id);
@@ -82,7 +74,7 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
 
     let wo = new DebtWriteOffEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
     wo.position = id;
-    wo.market = event.params.marketId.toString();
+    wo.pool = poolId(event.params.borrowAsset);
     wo.amount = amount;
     wo.caller = event.params.caller;
     wo.timestamp = event.block.timestamp;

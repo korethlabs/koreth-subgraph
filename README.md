@@ -1,19 +1,36 @@
 # Koreth Subgraph
 
-The Graph indexer for the **Koreth** protocol. Indexes positions, markets, borrows,
+The Graph indexer for the **Koreth** protocol. Indexes positions, lending pools, borrows,
 repays, liquidations, and bad-debt write-offs from
 [`koreth-v1-core`](https://github.com/korethlabs/koreth-v1-core) so apps and analytics can
 query protocol state without RPC fan-out.
 
 ## Data sources
 
-| Source              | Events                                                        |
-| ------------------- | ------------------------------------------------------------- |
-| `MarketFactory`     | `MarketCreated` (spawns a `Market` template per proxy)        |
-| `PositionManager`   | `PositionCreated`, `PositionClosed`, `PositionLiquidated`     |
-| `LendingEngine`     | `Borrowed`, `Repaid`, `DebtWrittenOff`                        |
-| `LiquidationEngine` | `LiquidationExecuted`                                          |
-| `Market` (template) | `Supply`, `Withdraw`                                           |
+| Source                   | Events                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| `PoolFactory`            | `PoolCreated` (spawns a `LendingPool` template per proxy)                                        |
+| `RiskManager`            | `CollateralConfigSet`, `LPTypeBorrowCapUpdated`, `Borrow`/`Accrual`/`RepayRecorded`              |
+| `PositionManager`        | `PositionCreated`, `PositionClosed`, `PositionLiquidated`                                        |
+| `LendingEngine`          | `Borrowed`, `Repaid`, `DebtWrittenOff`                                                           |
+| `LiquidationEngine`      | `LiquidationExecuted`                                                                            |
+| `LendingPool` (template) | `Supply`, `Withdraw`                                                                             |
+
+## Shared-pool model
+
+Liquidity and risk are indexed as two separate axes, mirroring the contracts:
+
+- **`Pool`** — one per borrow asset (USDC, USDT, …), holding liquidity and rates. Keyed by the
+  borrow-asset address, because that is what `PositionCreated` and `DebtWrittenOff` both carry.
+- **`CollateralType`** — one per `ILPAdapter.LPType`, holding LTV, liquidation threshold/bonus,
+  haircut and borrow cap. These apply across every pool at once.
+
+A `Position` therefore links to both. Its `lpPool` field is the *AMM* pair the LP token belongs
+to and is unrelated to `pool`.
+
+`CollateralType.currentBorrows` is accumulated from the `BorrowRecorded` / `AccrualRecorded` /
+`RepayRecorded` events, which each carry the per-type USD delta, so per-collateral exposure never
+requires a contract read.
 
 `DebtWrittenOff` (bad-debt socialization) zeroes the position's `currentDebt`, records a
 `DebtWriteOffEvent`, and removes the written-off amount from `ProtocolStats.totalBorrowed`.

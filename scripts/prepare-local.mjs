@@ -23,12 +23,13 @@ const SOURCES = {
     PositionManager: {artifact: "PositionManager.sol/PositionManager.json", key: "positionManager"},
     LendingEngine: {artifact: "LendingEngine.sol/LendingEngine.json", key: "lendingEngine"},
     LiquidationEngine: {artifact: "LiquidationEngine.sol/LiquidationEngine.json", key: "liquidationEngine"},
-    MarketFactory: {artifact: "MarketFactory.sol/MarketFactory.json", key: "marketFactory"},
+    PoolFactory: {artifact: "PoolFactory.sol/PoolFactory.json", key: "poolFactory"},
+    RiskManager: {artifact: "RiskManager.sol/RiskManager.json", key: "riskManager"},
 };
 
 // ABIs needed only for eth_call bindings inside mappings (not datasources, no address/startBlock).
 const CALL_ABIS = {
-    Market: "Market.sol/Market.json",
+    LendingPool: "LendingPool.sol/LendingPool.json",
 };
 
 mkdirSync(abisDir, {recursive: true});

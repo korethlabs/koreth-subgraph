@@ -1,15 +1,7 @@
 import {BigDecimal, BigInt} from "@graphprotocol/graph-ts";
 import {LiquidationExecuted} from "../generated/LiquidationEngine/LiquidationEngine";
-import {LiquidationEvent, Position, Market} from "../generated/schema";
-import {getOrCreateProtocolStats, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
-
-// repayAmount is in the position's market borrow asset — resolve its decimals.
-function borrowDecimals(positionId: string): i32 {
-    let p = Position.load(positionId);
-    if (p == null) return 6;
-    let m = Market.load(p.market);
-    return m == null ? 6 : m.decimals;
-}
+import {LiquidationEvent, Position} from "../generated/schema";
+import {borrowDecimals, getOrCreateProtocolStats, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
 
 export function handleLiquidationExecuted(event: LiquidationExecuted): void {
     let id = event.params.positionId.toString();

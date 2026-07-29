@@ -8,29 +8,61 @@ schema:
 # Keep the placeholders below at 0x0 / 0 in git.
 dataSources:
   - kind: ethereum
-    name: MarketFactory
+    name: PoolFactory
     network: mainnet
     source:
       address: "0x0000000000000000000000000000000000000000"
-      abi: MarketFactory
+      abi: PoolFactory
       startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - Market
+        - Pool
       abis:
-        - name: MarketFactory
-          file: ./abis/MarketFactory.json
-        - name: Market
-          file: ./abis/Market.json
+        - name: PoolFactory
+          file: ./abis/PoolFactory.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
         - name: ERC20
           file: ./abis/ERC20.json
       eventHandlers:
-        - event: MarketCreated(indexed uint256,address,address,uint8,address)
-          handler: handleMarketCreated
-      file: ./src/market-factory.ts
+        - event: PoolCreated(indexed address,address,address)
+          handler: handlePoolCreated
+      file: ./src/pool-factory.ts
+
+  # Risk params are no longer per-market; they live here, keyed by LP type, and apply to
+  # every pool at once.
+  - kind: ethereum
+    name: RiskManager
+    network: mainnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: RiskManager
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - CollateralType
+        - ProtocolStats
+      abis:
+        - name: RiskManager
+          file: ./abis/RiskManager.json
+      eventHandlers:
+        - event: CollateralConfigSet(indexed uint8)
+          handler: handleCollateralConfigSet
+        - event: LPTypeBorrowCapUpdated(indexed uint8,uint256)
+          handler: handleLPTypeBorrowCapUpdated
+        - event: BorrowRecorded(uint256,indexed uint8,uint256)
+          handler: handleBorrowRecorded
+        - event: AccrualRecorded(uint256,indexed uint8,uint256)
+          handler: handleAccrualRecorded
+        - event: RepayRecorded(uint256,indexed uint8,uint256)
+          handler: handleRepayRecorded
+      file: ./src/risk-manager.ts
 
   - kind: ethereum
     name: PositionManager
@@ -50,7 +82,7 @@ dataSources:
         - name: PositionManager
           file: ./abis/PositionManager.json
       eventHandlers:
-        - event: PositionCreated(indexed uint256,indexed address,address,uint256,uint8,uint256)
+        - event: PositionCreated(indexed uint256,indexed address,indexed address,address,uint256,uint8,uint256)
           handler: handlePositionCreated
         - event: PositionClosed(indexed uint256,indexed address)
           handler: handlePositionClosed
@@ -83,7 +115,7 @@ dataSources:
           handler: handleBorrowed
         - event: Repaid(indexed uint256,indexed address,uint256,uint256)
           handler: handleRepaid
-        - event: DebtWrittenOff(indexed uint256,indexed uint256,uint256,address)
+        - event: DebtWrittenOff(indexed uint256,indexed address,uint256,address)
           handler: handleDebtWrittenOff
       file: ./src/lending-engine.ts
 
@@ -110,27 +142,27 @@ dataSources:
           handler: handleLiquidationExecuted
       file: ./src/liquidation-engine.ts
 
-# Market proxies are created at runtime by MarketFactory; this template is instantiated
-# (with the marketId in its context) from handleMarketCreated to index each market's Supply/Withdraw.
+# Pool proxies are created at runtime by PoolFactory; this template is instantiated (with the
+# borrow asset in its context) from handlePoolCreated to index each pool's Supply/Withdraw.
 templates:
   - kind: ethereum
-    name: Market
+    name: LendingPool
     network: mainnet
     source:
-      abi: Market
+      abi: LendingPool
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - Market
+        - Pool
         - SupplyPosition
       abis:
-        - name: Market
-          file: ./abis/Market.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
       eventHandlers:
         - event: Supply(indexed address,uint256,uint256)
           handler: handleSupply
         - event: Withdraw(indexed address,uint256,uint256)
           handler: handleWithdraw
-      file: ./src/market.ts
+      file: ./src/lending-pool.ts
