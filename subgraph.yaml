@@ -87,6 +87,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Position
+        - CollateralType
         - ProtocolStats
       abis:
         - name: PositionManager
@@ -116,6 +117,7 @@ dataSources:
         - RepayEvent
         - DebtWriteOffEvent
         - Position
+        - Pool
         - ProtocolStats
       abis:
         - name: LendingEngine
@@ -143,6 +145,7 @@ dataSources:
       entities:
         - LiquidationEvent
         - Position
+        - Pool
         - ProtocolStats
       abis:
         - name: LiquidationEngine

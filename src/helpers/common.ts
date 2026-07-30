@@ -2,12 +2,12 @@ import {Address, BigDecimal, BigInt} from "@graphprotocol/graph-ts";
 import {ProtocolStats} from "../../generated/schema";
 
 // Oracle position values and RiskManager's USD exposure figures are both 18-dec.
-export const POSITION_VALUE_DECIMALS: u8 = 18;
+export const POSITION_VALUE_DECIMALS: i32 = 18;
 
 // InterestRateModel expresses utilization and risk params in basis points, and per-second
 // interest rates as 18-dec fixed point.
-export const BPS_DECIMALS: u8 = 4;
-export const RATE_DECIMALS: u8 = 18;
+export const BPS_DECIMALS: i32 = 4;
+export const RATE_DECIMALS: i32 = 18;
 
 /**
  * Pool.decimals when the borrow asset's decimals() reverted.

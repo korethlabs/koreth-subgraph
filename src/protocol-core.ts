@@ -32,7 +32,7 @@ export function handlePoolRegistered(event: PoolRegistered): void {
     pool.symbol = sym.reverted ? "?" : sym.value;
 
     // Liquidity and rates are read from the pool on every event that touches it (see
-    // syncPoolState in lending-pool.ts). Seed with zero — the pool has no supply yet.
+    // syncPoolState in helpers/pool.ts). Seed with zero — the pool has no supply yet.
     pool.totalSupply = BigDecimal.zero();
     pool.totalBorrow = BigDecimal.zero();
     pool.utilization = BigDecimal.zero();
