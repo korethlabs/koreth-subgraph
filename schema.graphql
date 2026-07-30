@@ -1,3 +1,7 @@
+# Shared-pool model: one LendingPool per borrow asset, with risk parameters held per
+# collateral type in RiskManager. A Position therefore points at BOTH a Pool (where its
+# debt lives) and a CollateralType (which risk params govern it).
+
 type Position @entity {
   id: ID!
   owner: Bytes!
@@ -5,10 +9,13 @@ type Position @entity {
   tokenId: BigInt
   amount: BigInt
   lpType: String!
-  pool: Bytes!
+  # The AMM pair/pool the LP token belongs to. Named `lpPool` to keep it distinct from
+  # `pool`, which is the Koreth lending pool this position borrows from.
+  lpPool: Bytes!
   token0: Bytes!
   token1: Bytes!
-  market: Market!
+  pool: Pool!
+  collateralType: CollateralType!
   depositValue: BigDecimal!
   currentDebt: BigDecimal!
   status: String!
@@ -20,30 +27,55 @@ type Position @entity {
   writeOffs: [DebtWriteOffEvent!]! @derivedFrom(field: "position")
 }
 
-type Market @entity {
+# Keyed by borrow-asset address (not the proxy address): PositionCreated and DebtWrittenOff
+# both identify a pool by its borrow asset, so this is the only id both can resolve without
+# an extra contract call.
+type Pool @entity {
   id: ID!
   address: Bytes!
-  lpType: String!
   borrowAsset: Bytes!
   symbol: String!
   decimals: Int!
-  totalSupply: BigDecimal!
-  totalBorrow: BigDecimal!
-  utilization: BigDecimal!
-  supplyRate: BigDecimal!
-  borrowRate: BigDecimal!
-  maxLtv: BigInt!
-  positions: [Position!]! @derivedFrom(field: "market")
-  supplyPositions: [SupplyPosition!]! @derivedFrom(field: "market")
+  # Read from LendingPool.getPoolState() on every event that touches the pool, never
+  # accumulated — interest accrual moves totalSupply without emitting a Supply/Withdraw, so an
+  # accumulator would drift permanently.
+  totalSupply: BigDecimal! # human units of borrowAsset
+  totalBorrow: BigDecimal! # human units of borrowAsset
+  utilization: BigDecimal! # fraction, 0.8 = 80%
+  supplyRate: BigDecimal! # per-second rate as a fraction
+  borrowRate: BigDecimal! # per-second rate as a fraction
+  positions: [Position!]! @derivedFrom(field: "pool")
+  supplyPositions: [SupplyPosition!]! @derivedFrom(field: "pool")
   createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+# Risk parameters are keyed by LP type alone and apply across every pool, so this entity is
+# the shared-pool equivalent of the per-market config that used to live on Market.
+type CollateralType @entity {
+  id: ID! # lpType name, e.g. "UniswapV3"
+  lpType: Int!
+  maxLtv: BigInt!
+  liquidationThreshold: BigInt!
+  liquidationBonus: BigInt!
+  haircut: BigInt!
+  borrowCap: BigInt!
+  enabled: Boolean!
+  # Running USD (18-dec) exposure for this collateral type, accumulated from the
+  # Borrow/Accrual/RepayRecorded events rather than read back from the contract.
+  currentBorrows: BigDecimal!
+  positions: [Position!]! @derivedFrom(field: "collateralType")
+  updatedAt: BigInt!
 }
 
 type SupplyPosition @entity {
-  id: ID! # marketId-user
-  market: Market!
+  id: ID! # poolId-user
+  pool: Pool!
   user: Bytes!
+  # Both read from the pool's own share accounting rather than accumulated, so suppliedAmount
+  # includes accrued interest: shares * pool.totalSupply / totalShares.
   shares: BigInt!
-  suppliedAmount: BigDecimal! # cumulative net supplied, human units
+  suppliedAmount: BigDecimal! # redeemable value in human units of borrowAsset
   updatedAt: BigInt!
 }
 
@@ -81,7 +113,7 @@ type LiquidationEvent @entity(immutable: true) {
 type DebtWriteOffEvent @entity(immutable: true) {
   id: ID!
   position: Position!
-  market: Market!
+  pool: Pool!
   amount: BigDecimal!
   caller: Bytes!
   timestamp: BigInt!
@@ -90,9 +122,13 @@ type DebtWriteOffEvent @entity(immutable: true) {
 
 type ProtocolStats @entity {
   id: ID!
-  totalTVL: BigDecimal!
-  totalBorrowed: BigDecimal!
+  totalTVL: BigDecimal! # USD
   totalPositions: BigInt!
   totalLiquidations: BigInt!
   totalFeesCollected: BigDecimal!
+  # Protocol-wide USD borrows as reported by RiskManager, which is the figure the global
+  # borrow cap is actually checked against. This replaces the old `totalBorrowed`, which summed
+  # human units across borrow assets — adding USDC to WETH — and so was meaningless as soon as
+  # a second pool existed. For a per-asset figure use Pool.totalBorrow.
+  globalBorrowsUsd: BigDecimal!
 }

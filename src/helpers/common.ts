@@ -1,11 +1,34 @@
-import {BigDecimal, BigInt} from "@graphprotocol/graph-ts";
+import {Address, BigDecimal, BigInt} from "@graphprotocol/graph-ts";
 import {ProtocolStats} from "../../generated/schema";
 
-// Oracle position values are 18-dec USD; the borrow asset on the seeded market is USDC (6-dec).
-export const POSITION_VALUE_DECIMALS: u8 = 18;
-export const BORROW_DECIMALS: u8 = 6;
+// Oracle position values and RiskManager's USD exposure figures are both 18-dec.
+export const POSITION_VALUE_DECIMALS: i32 = 18;
 
-// ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol)
+// InterestRateModel expresses utilization and risk params in basis points, and per-second
+// interest rates as 18-dec fixed point.
+export const BPS_DECIMALS: i32 = 4;
+export const RATE_DECIMALS: i32 = 18;
+
+/**
+ * Pool.decimals when the borrow asset's decimals() reverted.
+ *
+ * There is deliberately no default. Pools exist per borrow asset, so DAI/WETH pools are 18-dec
+ * while USDC/USDT are 6-dec: guessing is wrong by a factor of 1e12, and these amounts feed the
+ * protocol-wide ProtocolStats aggregates, so one bad guess corrupts a global figure rather than
+ * just its own subtree. positionPool() folds this into a null, and callers skip the event.
+ */
+export const UNKNOWN_DECIMALS: i32 = -1;
+
+// Pool entities are keyed by borrow asset. Everything that resolves a pool (PositionCreated,
+// DebtWrittenOff, the template context) goes through here so the casing can never diverge.
+export function poolId(borrowAsset: Address): string {
+    return borrowAsset.toHex();
+}
+
+// ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol).
+// This doubles as the CollateralType entity id, so the fallback keeps the numeric value: if core
+// adds a seventh LP type before the subgraph is redeployed, a bare "Unknown" would merge every
+// unrecognised type into one entity and scramble its risk params and currentBorrows.
 export function lpTypeName(lpType: i32): string {
     if (lpType == 0) return "UniswapV2";
     if (lpType == 1) return "UniswapV3";
@@ -13,7 +36,7 @@ export function lpTypeName(lpType: i32): string {
     if (lpType == 3) return "Aerodrome";
     if (lpType == 4) return "PancakeSwapV2";
     if (lpType == 5) return "PancakeSwapV3";
-    return "Unknown";
+    return "Unknown-" + lpType.toString();
 }
 
 export function exponentToBigDecimal(decimals: i32): BigDecimal {
@@ -35,10 +58,10 @@ export function getOrCreateProtocolStats(): ProtocolStats {
     if (stats == null) {
         stats = new ProtocolStats("1");
         stats.totalTVL = BigDecimal.zero();
-        stats.totalBorrowed = BigDecimal.zero();
         stats.totalPositions = BigInt.zero();
         stats.totalLiquidations = BigInt.zero();
         stats.totalFeesCollected = BigDecimal.zero();
+        stats.globalBorrowsUsd = BigDecimal.zero();
     }
     return stats;
 }

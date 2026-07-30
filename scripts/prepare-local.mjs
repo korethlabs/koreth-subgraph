@@ -23,12 +23,15 @@ const SOURCES = {
     PositionManager: {artifact: "PositionManager.sol/PositionManager.json", key: "positionManager"},
     LendingEngine: {artifact: "LendingEngine.sol/LendingEngine.json", key: "lendingEngine"},
     LiquidationEngine: {artifact: "LiquidationEngine.sol/LiquidationEngine.json", key: "liquidationEngine"},
-    MarketFactory: {artifact: "MarketFactory.sol/MarketFactory.json", key: "marketFactory"},
+    // Pools are indexed off ProtocolCore, not PoolFactory: registerPool() is the single
+    // chokepoint every pool passes through, including factory-created ones.
+    ProtocolCore: {artifact: "ProtocolCore.sol/ProtocolCore.json", key: "core"},
+    RiskManager: {artifact: "RiskManager.sol/RiskManager.json", key: "riskManager"},
 };
 
 // ABIs needed only for eth_call bindings inside mappings (not datasources, no address/startBlock).
 const CALL_ABIS = {
-    Market: "Market.sol/Market.json",
+    LendingPool: "LendingPool.sol/LendingPool.json",
 };
 
 mkdirSync(abisDir, {recursive: true});

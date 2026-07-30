@@ -1,19 +1,17 @@
-import {BigDecimal} from "@graphprotocol/graph-ts";
+import {BigDecimal, log} from "@graphprotocol/graph-ts";
 import {Borrowed, Repaid, DebtWrittenOff} from "../generated/LendingEngine/LendingEngine";
-import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Position, Market} from "../generated/schema";
-import {getOrCreateProtocolStats, toDecimal} from "./helpers/common";
-
-// Borrow amounts are denominated in the position's market borrow asset — resolve its decimals.
-function borrowDecimals(positionId: string): i32 {
-    let p = Position.load(positionId);
-    if (p == null) return 6;
-    let m = Market.load(p.market);
-    return m == null ? 6 : m.decimals;
-}
+import {BorrowEvent, RepayEvent, DebtWriteOffEvent, Pool, Position} from "../generated/schema";
+import {poolId, toDecimal, UNKNOWN_DECIMALS} from "./helpers/common";
+import {positionPool, syncPoolState} from "./helpers/pool";
 
 export function handleBorrowed(event: Borrowed): void {
     let id = event.params.positionId.toString();
-    let dec = borrowDecimals(id);
+    let pool = positionPool(id);
+    if (pool == null) {
+        log.error("Borrowed: cannot resolve pool or borrow-asset scale for position {} — event skipped", [id]);
+        return;
+    }
+    let dec = pool.decimals;
     let amount = toDecimal(event.params.amount, dec);
     let totalDebt = toDecimal(event.params.totalDebt, dec);
 
@@ -34,14 +32,17 @@ export function handleBorrowed(event: Borrowed): void {
         position.save();
     }
 
-    let stats = getOrCreateProtocolStats();
-    stats.totalBorrowed = stats.totalBorrowed.plus(amount);
-    stats.save();
+    syncPoolState(pool, event.block.timestamp);
 }
 
 export function handleRepaid(event: Repaid): void {
     let id = event.params.positionId.toString();
-    let dec = borrowDecimals(id);
+    let pool = positionPool(id);
+    if (pool == null) {
+        log.error("Repaid: cannot resolve pool or borrow-asset scale for position {} — event skipped", [id]);
+        return;
+    }
+    let dec = pool.decimals;
     let amount = toDecimal(event.params.amount, dec);
     let remainingDebt = toDecimal(event.params.remainingDebt, dec);
 
@@ -64,30 +65,37 @@ export function handleRepaid(event: Repaid): void {
         position.save();
     }
 
-    let stats = getOrCreateProtocolStats();
-    stats.totalBorrowed = stats.totalBorrowed.minus(amount);
-    if (stats.totalBorrowed.lt(BigDecimal.zero())) {
-        stats.totalBorrowed = BigDecimal.zero();
-    }
-    stats.save();
+    syncPoolState(pool, event.block.timestamp);
 }
 
 // Bad-debt socialization: LiquidationEngine writes off a position's full remaining debt,
-// zeroing its debt and recording a market deficit. Mirror that here — clear currentDebt
-// and remove the written-off amount from protocol totalBorrowed.
+// zeroing its debt and recording a deficit on the shared pool.
 export function handleDebtWrittenOff(event: DebtWrittenOff): void {
     let id = event.params.positionId.toString();
-    let dec = borrowDecimals(id);
-    let amount = toDecimal(event.params.amount, dec);
 
-    let wo = new DebtWriteOffEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
-    wo.position = id;
-    wo.market = event.params.marketId.toString();
-    wo.amount = amount;
-    wo.caller = event.params.caller;
-    wo.timestamp = event.block.timestamp;
-    wo.txHash = event.transaction.hash;
-    wo.save();
+    // Unlike Borrowed/Repaid, this event names the borrow asset directly, so the pool resolves
+    // without the Position -> Pool hop.
+    let pId = poolId(event.params.borrowAsset);
+    let pool = Pool.load(pId);
+    let scaled = pool != null && pool.decimals != UNKNOWN_DECIMALS;
+
+    // Only the write-off amount needs the borrow asset's scale. Zeroing the debt below does not,
+    // and it is the part that matters most: skipping it would leave a position whose debt was
+    // wiped on-chain reporting an outstanding balance forever.
+    if (scaled) {
+        let wo = new DebtWriteOffEvent(event.transaction.hash.toHex() + "-" + event.logIndex.toString());
+        wo.position = id;
+        wo.pool = pId;
+        wo.amount = toDecimal(event.params.amount, pool!.decimals);
+        wo.caller = event.params.caller;
+        wo.timestamp = event.block.timestamp;
+        wo.txHash = event.transaction.hash;
+        wo.save();
+    } else {
+        log.error("DebtWrittenOff: no indexed pool, or unknown scale, for borrow asset {} — amount not indexed", [
+            event.params.borrowAsset.toHex(),
+        ]);
+    }
 
     let position = Position.load(id);
     if (position != null) {
@@ -96,10 +104,5 @@ export function handleDebtWrittenOff(event: DebtWrittenOff): void {
         position.save();
     }
 
-    let stats = getOrCreateProtocolStats();
-    stats.totalBorrowed = stats.totalBorrowed.minus(amount);
-    if (stats.totalBorrowed.lt(BigDecimal.zero())) {
-        stats.totalBorrowed = BigDecimal.zero();
-    }
-    stats.save();
+    if (scaled) syncPoolState(pool!, event.block.timestamp);
 }

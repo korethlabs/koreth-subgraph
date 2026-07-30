@@ -212,9 +212,9 @@
         "internalType": "uint256"
       },
       {
-        "name": "marketId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "borrowAsset",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -345,9 +345,9 @@
             "internalType": "address"
           },
           {
-            "name": "marketId",
-            "type": "uint256",
-            "internalType": "uint256"
+            "name": "borrowAsset",
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "status",
@@ -710,10 +710,10 @@
     "name": "CircuitBreakerNotConfigured",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
+        "name": "borrowAsset",
+        "type": "address",
         "indexed": true,
-        "internalType": "uint256"
+        "internalType": "address"
       },
       {
         "name": "pool",
@@ -924,6 +924,12 @@
       },
       {
         "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "borrowAsset",
         "type": "address",
         "indexed": true,
         "internalType": "address"

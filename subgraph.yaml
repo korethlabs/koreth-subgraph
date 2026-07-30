@@ -7,30 +7,72 @@ schema:
 # `graph build/deploy --network mainnet` (see `pnpm prepare-local` / `pnpm deploy-local`).
 # Keep the placeholders below at 0x0 / 0 in git.
 dataSources:
+  # Pools are indexed off ProtocolCore rather than PoolFactory. registerPool() is the single
+  # chokepoint every pool passes through — the factory calls it too — and it enforces
+  # `pool.borrowAsset() == borrowAsset`, so a Pool entity can never be missing or mis-keyed.
+  # Indexing PoolFactory.PoolCreated instead would miss pools a PoolAdmin registers directly,
+  # and would go blind entirely if setPoolFactory() re-pointed the factory.
   - kind: ethereum
-    name: MarketFactory
+    name: ProtocolCore
     network: mainnet
     source:
       address: "0x0000000000000000000000000000000000000000"
-      abi: MarketFactory
+      abi: ProtocolCore
       startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - Market
+        - Pool
       abis:
-        - name: MarketFactory
-          file: ./abis/MarketFactory.json
-        - name: Market
-          file: ./abis/Market.json
+        - name: ProtocolCore
+          file: ./abis/ProtocolCore.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
         - name: ERC20
           file: ./abis/ERC20.json
       eventHandlers:
-        - event: MarketCreated(indexed uint256,address,address,uint8,address)
-          handler: handleMarketCreated
-      file: ./src/market-factory.ts
+        - event: PoolRegistered(indexed address,indexed address)
+          handler: handlePoolRegistered
+        # Swapping the RiskManager silently invalidates CollateralType.currentBorrows and
+        # ProtocolStats.globalBorrowsUsd, which are accumulated from its events and have no
+        # self-correcting read. Indexed purely so the break is visible in the logs.
+        - event: RiskManagerUpdated(indexed address,indexed address)
+          handler: handleRiskManagerUpdated
+      file: ./src/protocol-core.ts
+
+  # Risk params are no longer per-market; they live here, keyed by LP type, and apply to
+  # every pool at once.
+  - kind: ethereum
+    name: RiskManager
+    network: mainnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: RiskManager
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - CollateralType
+        - ProtocolStats
+      abis:
+        - name: RiskManager
+          file: ./abis/RiskManager.json
+      eventHandlers:
+        - event: CollateralConfigSet(indexed uint8)
+          handler: handleCollateralConfigSet
+        - event: LPTypeBorrowCapUpdated(indexed uint8,uint256)
+          handler: handleLPTypeBorrowCapUpdated
+        - event: BorrowRecorded(uint256,indexed uint8,uint256)
+          handler: handleBorrowRecorded
+        - event: AccrualRecorded(uint256,indexed uint8,uint256)
+          handler: handleAccrualRecorded
+        - event: RepayRecorded(uint256,indexed uint8,uint256)
+          handler: handleRepayRecorded
+      file: ./src/risk-manager.ts
 
   - kind: ethereum
     name: PositionManager
@@ -45,12 +87,13 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Position
+        - CollateralType
         - ProtocolStats
       abis:
         - name: PositionManager
           file: ./abis/PositionManager.json
       eventHandlers:
-        - event: PositionCreated(indexed uint256,indexed address,address,uint256,uint8,uint256)
+        - event: PositionCreated(indexed uint256,indexed address,indexed address,address,uint256,uint8,uint256)
           handler: handlePositionCreated
         - event: PositionClosed(indexed uint256,indexed address)
           handler: handlePositionClosed
@@ -74,6 +117,7 @@ dataSources:
         - RepayEvent
         - DebtWriteOffEvent
         - Position
+        - Pool
         - ProtocolStats
       abis:
         - name: LendingEngine
@@ -83,7 +127,7 @@ dataSources:
           handler: handleBorrowed
         - event: Repaid(indexed uint256,indexed address,uint256,uint256)
           handler: handleRepaid
-        - event: DebtWrittenOff(indexed uint256,indexed uint256,uint256,address)
+        - event: DebtWrittenOff(indexed uint256,indexed address,uint256,address)
           handler: handleDebtWrittenOff
       file: ./src/lending-engine.ts
 
@@ -101,6 +145,7 @@ dataSources:
       entities:
         - LiquidationEvent
         - Position
+        - Pool
         - ProtocolStats
       abis:
         - name: LiquidationEngine
@@ -110,27 +155,31 @@ dataSources:
           handler: handleLiquidationExecuted
       file: ./src/liquidation-engine.ts
 
-# Market proxies are created at runtime by MarketFactory; this template is instantiated
-# (with the marketId in its context) from handleMarketCreated to index each market's Supply/Withdraw.
+# Pool proxies are deployed at runtime, so they are indexed via a template instantiated (with
+# the pool id in its context) from handlePoolRegistered.
 templates:
   - kind: ethereum
-    name: Market
+    name: LendingPool
     network: mainnet
     source:
-      abi: Market
+      abi: LendingPool
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
-        - Market
+        - Pool
         - SupplyPosition
       abis:
-        - name: Market
-          file: ./abis/Market.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
       eventHandlers:
         - event: Supply(indexed address,uint256,uint256)
           handler: handleSupply
         - event: Withdraw(indexed address,uint256,uint256)
           handler: handleWithdraw
-      file: ./src/market.ts
+        # accrueInterest() credits lenders by mutating totalSupply directly, so without this
+        # the pool's liquidity and rate fields would only ever refresh on user activity.
+        - event: InterestAccrued(uint256,uint256,uint256,uint256)
+          handler: handleInterestAccrued
+      file: ./src/lending-pool.ts

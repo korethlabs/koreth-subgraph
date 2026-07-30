@@ -19,19 +19,6 @@
   },
   {
     "type": "function",
-    "name": "MAX_LIQUIDATION_BONUS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "UPGRADE_INTERFACE_VERSION",
     "inputs": [],
     "outputs": [
@@ -52,6 +39,19 @@
   },
   {
     "type": "function",
+    "name": "borrowAsset",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "borrowIndex",
     "inputs": [],
     "outputs": [
@@ -69,44 +69,9 @@
     "inputs": [],
     "outputs": [
       {
-        "name": "lpType",
-        "type": "uint8",
-        "internalType": "enum ILPAdapter.LPType"
-      },
-      {
         "name": "borrowAsset",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "maxLtv",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidationThreshold",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidationBonus",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "borrowCap",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "minPoolTvl",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "minPoolAge",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -172,47 +137,12 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct IMarket.MarketConfig",
+        "internalType": "struct ILendingPool.PoolConfig",
         "components": [
-          {
-            "name": "lpType",
-            "type": "uint8",
-            "internalType": "enum ILPAdapter.LPType"
-          },
           {
             "name": "borrowAsset",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "maxLtv",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "liquidationThreshold",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "liquidationBonus",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "borrowCap",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minPoolTvl",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minPoolAge",
-            "type": "uint256",
-            "internalType": "uint256"
           }
         ]
       }
@@ -221,13 +151,13 @@
   },
   {
     "type": "function",
-    "name": "getMarketState",
+    "name": "getPoolState",
     "inputs": [],
     "outputs": [
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct IMarket.MarketState",
+        "internalType": "struct ILendingPool.PoolState",
         "components": [
           {
             "name": "totalSupply",
@@ -271,47 +201,12 @@
       {
         "name": "_config",
         "type": "tuple",
-        "internalType": "struct IMarket.MarketConfig",
+        "internalType": "struct ILendingPool.PoolConfig",
         "components": [
-          {
-            "name": "lpType",
-            "type": "uint8",
-            "internalType": "enum ILPAdapter.LPType"
-          },
           {
             "name": "borrowAsset",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "maxLtv",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "liquidationThreshold",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "liquidationBonus",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "borrowCap",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minPoolTvl",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minPoolAge",
-            "type": "uint256",
-            "internalType": "uint256"
           }
         ]
       },
@@ -586,34 +481,6 @@
   },
   {
     "type": "function",
-    "name": "updateConfig",
-    "inputs": [
-      {
-        "name": "_maxLtv",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_liquidationThreshold",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_liquidationBonus",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_borrowCap",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "upgradeToAndCall",
     "inputs": [
       {
@@ -765,31 +632,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "MarketConfigUpdated",
-    "inputs": [
-      {
-        "name": "field",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "oldValue",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newValue",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
