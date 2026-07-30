@@ -7,25 +7,8 @@ import {
     AccrualRecorded,
     RepayRecorded
 } from "../generated/RiskManager/RiskManager";
-import {CollateralType} from "../generated/schema";
-import {getOrCreateProtocolStats, lpTypeName, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
-
-function getOrCreateCollateralType(lpType: i32): CollateralType {
-    let id = lpTypeName(lpType);
-    let ct = CollateralType.load(id);
-    if (ct == null) {
-        ct = new CollateralType(id);
-        ct.lpType = lpType;
-        ct.maxLtv = BigInt.zero();
-        ct.liquidationThreshold = BigInt.zero();
-        ct.liquidationBonus = BigInt.zero();
-        ct.haircut = BigInt.zero();
-        ct.borrowCap = BigInt.zero();
-        ct.enabled = false;
-        ct.currentBorrows = BigDecimal.zero();
-    }
-    return ct;
-}
+import {getOrCreateProtocolStats, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
+import {getOrCreateCollateralType} from "./helpers/collateral";
 
 // CollateralConfigSet carries only the lpType, so the params have to be read back from the
 // contract. That is deliberate on the core side: the struct has six fields and would make an

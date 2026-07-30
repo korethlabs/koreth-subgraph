@@ -5,8 +5,9 @@ import {
     PositionLiquidated,
     PositionManager
 } from "../generated/PositionManager/PositionManager";
-import {Position} from "../generated/schema";
+import {CollateralType, Position} from "../generated/schema";
 import {getOrCreateProtocolStats, lpTypeName, poolId, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
+import {getOrCreateCollateralType} from "./helpers/collateral";
 
 export function handlePositionCreated(event: PositionCreated): void {
     let id = event.params.positionId.toString();
@@ -25,7 +26,20 @@ export function handlePositionCreated(event: PositionCreated): void {
     // Both protocol-side links come straight off the event: the shared pool is identified by
     // its borrow asset, and risk params are keyed by LP type.
     position.pool = poolId(event.params.borrowAsset);
-    position.collateralType = lpTypeName(event.params.lpType);
+
+    // collateralType is non-nullable, so it has to resolve even if no RiskManager event has been
+    // indexed for this LP type yet — a dangling reference fails the whole position query, not
+    // just that field. deposit() requires an enabled config, so in practice CollateralConfigSet
+    // came first; this covers the case where it landed before the data source's startBlock.
+    // Only seed when genuinely absent: updatedAt tracks when the risk config last changed, and
+    // touching it on every deposit would make a never-reconfigured type look freshly updated.
+    let ctId = lpTypeName(event.params.lpType);
+    if (CollateralType.load(ctId) == null) {
+        let ct = getOrCreateCollateralType(event.params.lpType);
+        ct.updatedAt = event.block.timestamp;
+        ct.save();
+    }
+    position.collateralType = ctId;
 
     // The AMM-side fields still need the on-chain struct — PositionCreated does not carry them.
     let pm = PositionManager.bind(event.address);
