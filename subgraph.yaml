@@ -88,6 +88,7 @@ dataSources:
       entities:
         - Position
         - CollateralType
+        - Pool
         - ProtocolStats
       abis:
         - name: PositionManager
@@ -122,6 +123,11 @@ dataSources:
       abis:
         - name: LendingEngine
           file: ./abis/LendingEngine.json
+        # syncPoolState() binds the pool proxy to read getPoolState(). A contract can only be
+        # bound from a data source that declares its ABI, so every mapping that reaches for the
+        # pool needs LendingPool here — not just the pool template itself.
+        - name: LendingPool
+          file: ./abis/LendingPool.json
       eventHandlers:
         - event: Borrowed(indexed uint256,indexed address,uint256,uint256)
           handler: handleBorrowed
@@ -150,6 +156,9 @@ dataSources:
       abis:
         - name: LiquidationEngine
           file: ./abis/LiquidationEngine.json
+        # handleLiquidationExecuted refreshes the pool after the repay leg — same bind as above.
+        - name: LendingPool
+          file: ./abis/LendingPool.json
       eventHandlers:
         - event: LiquidationExecuted(indexed uint256,indexed address,uint256,uint256,uint256)
           handler: handleLiquidationExecuted
