@@ -5,9 +5,10 @@ import {
     PositionLiquidated,
     PositionManager
 } from "../generated/PositionManager/PositionManager";
-import {CollateralType, Position} from "../generated/schema";
+import {CollateralType, Pool, Position} from "../generated/schema";
 import {getOrCreateProtocolStats, lpTypeName, poolId, toDecimal, POSITION_VALUE_DECIMALS} from "./helpers/common";
 import {getOrCreateCollateralType} from "./helpers/collateral";
+import {getOrCreatePool} from "./helpers/pool";
 
 export function handlePositionCreated(event: PositionCreated): void {
     let id = event.params.positionId.toString();
@@ -24,8 +25,17 @@ export function handlePositionCreated(event: PositionCreated): void {
     position.updatedAt = event.block.timestamp;
 
     // Both protocol-side links come straight off the event: the shared pool is identified by
-    // its borrow asset, and risk params are keyed by LP type.
-    position.pool = poolId(event.params.borrowAsset);
+    // its borrow asset, and risk params are keyed by LP type. Both are non-nullable references,
+    // so both get the same treatment: seed a placeholder when the defining event landed before
+    // this data source's startBlock, rather than leave the reference dangling.
+    let pId = poolId(event.params.borrowAsset);
+    if (Pool.load(pId) == null) {
+        let pool = getOrCreatePool(event.params.borrowAsset);
+        pool.createdAt = event.block.timestamp;
+        pool.updatedAt = event.block.timestamp;
+        pool.save();
+    }
+    position.pool = pId;
 
     // collateralType is non-nullable, so it has to resolve even if no RiskManager event has been
     // indexed for this LP type yet — a dangling reference fails the whole position query, not

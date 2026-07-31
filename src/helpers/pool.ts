@@ -1,7 +1,37 @@
-import {Address, BigInt, log} from "@graphprotocol/graph-ts";
+import {Address, BigDecimal, BigInt, log} from "@graphprotocol/graph-ts";
 import {LendingPool} from "../../generated/templates/LendingPool/LendingPool";
 import {Pool, Position} from "../../generated/schema";
-import {BPS_DECIMALS, RATE_DECIMALS, toDecimal, UNKNOWN_DECIMALS} from "./common";
+import {BPS_DECIMALS, poolId, RATE_DECIMALS, toDecimal, UNKNOWN_DECIMALS} from "./common";
+
+/**
+ * Load the pool for a borrow asset, or seed a placeholder when it is missing.
+ *
+ * handlePoolRegistered is the real constructor — this only covers the case where PoolRegistered
+ * landed before the data source's startBlock, which would otherwise leave Position.pool (a
+ * non-nullable reference) dangling and fail the whole position query rather than just that field.
+ *
+ * The placeholder is deliberately fail-closed: the pool proxy address is unknown here, so
+ * `decimals` gets the UNKNOWN_DECIMALS sentinel, which makes syncPoolState refuse to bind and
+ * positionPool() return null. Every borrow-side amount consumer then skips the event instead of
+ * mis-scaling it against a made-up scale. Does not save — the caller sets the timestamps.
+ */
+export function getOrCreatePool(borrowAsset: Address): Pool {
+    let id = poolId(borrowAsset);
+    let pool = Pool.load(id);
+    if (pool == null) {
+        pool = new Pool(id);
+        pool.address = Address.zero();
+        pool.borrowAsset = borrowAsset;
+        pool.symbol = "?";
+        pool.decimals = UNKNOWN_DECIMALS;
+        pool.totalSupply = BigDecimal.zero();
+        pool.totalBorrow = BigDecimal.zero();
+        pool.utilization = BigDecimal.zero();
+        pool.supplyRate = BigDecimal.zero();
+        pool.borrowRate = BigDecimal.zero();
+    }
+    return pool;
+}
 
 /**
  * Refresh a pool's liquidity and rate fields from the contract, then save it.
