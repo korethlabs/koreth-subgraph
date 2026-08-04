@@ -1,12 +1,12 @@
 import {BigDecimal, DataSourceContext, log} from "@graphprotocol/graph-ts";
-import {PoolRegistered, RiskManagerUpdated} from "../generated/ProtocolCore/ProtocolCore";
+import {LendingPoolRegistered, RiskManagerUpdated} from "../generated/ProtocolCore/ProtocolCore";
 import {ERC20} from "../generated/ProtocolCore/ERC20";
 import {LendingPool as LendingPoolTemplate} from "../generated/templates";
 import {Pool} from "../generated/schema";
 import {poolId, UNKNOWN_DECIMALS} from "./helpers/common";
 
-export function handlePoolRegistered(event: PoolRegistered): void {
-    // registerPool() rejects a borrow asset that is already registered, so this can never
+export function handleLendingPoolRegistered(event: LendingPoolRegistered): void {
+    // registerLendingPool() rejects a borrow asset that is already registered, so this can never
     // clobber a live entity.
     let pool = new Pool(poolId(event.params.borrowAsset));
     pool.address = event.params.pool;
@@ -14,7 +14,7 @@ export function handlePoolRegistered(event: PoolRegistered): void {
 
     // Borrow-asset metadata (decimals/symbol) — read from the token. Decimals decide the scale of
     // every borrow-side amount downstream, and core never calls decimals() itself, so a token
-    // without it can genuinely reach registerPool(). Defaulting to 18 would mis-scale a 6-dec
+    // without it can genuinely reach registerLendingPool(). Defaulting to 18 would mis-scale a 6-dec
     // asset by 1e12 and quietly poison the protocol-wide aggregates, so store -1 instead: the
     // "scale unknown" sentinel, which positionPool() turns into a null so every consumer of a
     // borrow-side amount skips the event instead of converting. The entity is still created so
@@ -23,7 +23,7 @@ export function handlePoolRegistered(event: PoolRegistered): void {
     let dec = erc.try_decimals();
     if (dec.reverted) {
         log.error(
-            "PoolRegistered: decimals() reverted for borrow asset {} — pool indexed with unknown scale, its amounts will be skipped",
+            "LendingPoolRegistered: decimals() reverted for borrow asset {} — pool indexed with unknown scale, its amounts will be skipped",
             [event.params.borrowAsset.toHex()],
         );
     }

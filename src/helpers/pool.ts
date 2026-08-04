@@ -6,7 +6,7 @@ import {BPS_DECIMALS, poolId, RATE_DECIMALS, toDecimal, UNKNOWN_DECIMALS} from "
 /**
  * Load the pool for a borrow asset, or seed a placeholder when it is missing.
  *
- * handlePoolRegistered is the real constructor — this only covers the case where PoolRegistered
+ * handleLendingPoolRegistered is the real constructor — this only covers the case where LendingPoolRegistered
  * landed before the data source's startBlock, which would otherwise leave Position.pool (a
  * non-nullable reference) dangling and fail the whole position query rather than just that field.
  *

@@ -82,6 +82,44 @@
   },
   {
     "type": "function",
+    "name": "getLendingPool",
+    "inputs": [
+      {
+        "name": "borrowAsset",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLpPoolAge",
+    "inputs": [
+      {
+        "name": "pool",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getOracle",
     "inputs": [
       {
@@ -101,14 +139,8 @@
   },
   {
     "type": "function",
-    "name": "getPool",
-    "inputs": [
-      {
-        "name": "borrowAsset",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "name": "getPriceFeedRegistry",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
@@ -120,10 +152,10 @@
   },
   {
     "type": "function",
-    "name": "getPoolAge",
+    "name": "isLendingPool",
     "inputs": [
       {
-        "name": "pool",
+        "name": "",
         "type": "address",
         "internalType": "address"
       }
@@ -131,15 +163,15 @@
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "isPoolSupported",
+    "name": "isLpPoolSupported",
     "inputs": [
       {
         "name": "pool",
@@ -152,6 +184,44 @@
         "name": "",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lendingPool",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lpPoolAddedAt",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -236,46 +306,8 @@
   },
   {
     "type": "function",
-    "name": "poolAddedAt",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "poolFactory",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "pools",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
     "outputs": [
       {
         "name": "",
@@ -318,6 +350,24 @@
   },
   {
     "type": "function",
+    "name": "registerLendingPool",
+    "inputs": [
+      {
+        "name": "borrowAsset",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "pool",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "registerOracle",
     "inputs": [
       {
@@ -336,44 +386,7 @@
   },
   {
     "type": "function",
-    "name": "registerPool",
-    "inputs": [
-      {
-        "name": "borrowAsset",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "pool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "registeredPools",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "removePool",
+    "name": "removeLpPool",
     "inputs": [
       {
         "name": "pool",
@@ -451,7 +464,7 @@
   },
   {
     "type": "function",
-    "name": "supportedPools",
+    "name": "supportedLpPools",
     "inputs": [
       {
         "name": "",
@@ -490,7 +503,7 @@
   },
   {
     "type": "function",
-    "name": "whitelistPool",
+    "name": "whitelistLpPool",
     "inputs": [
       {
         "name": "pool",
@@ -531,7 +544,58 @@
         "internalType": "enum ILPAdapter.LPType"
       },
       {
+        "name": "oldAdapter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
         "name": "adapter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LendingPoolRegistered",
+    "inputs": [
+      {
+        "name": "borrowAsset",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "pool",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LpPoolRemoved",
+    "inputs": [
+      {
+        "name": "pool",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LpPoolWhitelisted",
+    "inputs": [
+      {
+        "name": "pool",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -548,6 +612,12 @@
         "type": "uint8",
         "indexed": true,
         "internalType": "enum ILPAdapter.LPType"
+      },
+      {
+        "name": "oldOracle",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "oracle",
@@ -640,51 +710,6 @@
       },
       {
         "name": "newFactory",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PoolRegistered",
-    "inputs": [
-      {
-        "name": "borrowAsset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PoolRemoved",
-    "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PoolWhitelisted",
-    "inputs": [
-      {
-        "name": "pool",
         "type": "address",
         "indexed": true,
         "internalType": "address"
