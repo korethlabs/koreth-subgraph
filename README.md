@@ -9,14 +9,14 @@ query protocol state without RPC fan-out.
 
 | Source                   | Events                                                                                          |
 | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `ProtocolCore`           | `PoolRegistered` (spawns a `LendingPool` template per proxy), `RiskManagerUpdated`               |
+| `ProtocolCore`           | `LendingPoolRegistered` (spawns a `LendingPool` template per proxy), `RiskManagerUpdated`               |
 | `RiskManager`            | `CollateralConfigSet`, `LPTypeBorrowCapUpdated`, `BorrowRecorded`, `AccrualRecorded`, `RepayRecorded` |
 | `PositionManager`        | `PositionCreated`, `PositionClosed`, `PositionLiquidated`                                        |
 | `LendingEngine`          | `Borrowed`, `Repaid`, `DebtWrittenOff`                                                           |
 | `LiquidationEngine`      | `LiquidationExecuted`                                                                            |
 | `LendingPool` (template) | `Supply`, `Withdraw`, `InterestAccrued`                                                          |
 
-Pools come from `ProtocolCore.PoolRegistered`, not `PoolFactory.PoolCreated`: `registerPool()` is
+Pools come from `ProtocolCore.LendingPoolRegistered`, not `PoolFactory.PoolCreated`: `registerLendingPool()` is
 the single chokepoint every pool passes through — the factory calls it too — and it enforces
 `pool.borrowAsset() == borrowAsset`. Indexing the factory instead would miss pools a `PoolAdmin`
 registers directly, and would go blind entirely if `setPoolFactory()` re-pointed the factory.

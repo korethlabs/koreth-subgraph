@@ -3,15 +3,7 @@ indexerHints:
   prune: auto
 schema:
   file: ./schema.graphql
-# Addresses + startBlock are injected at deploy time from networks.json via
-# `graph build/deploy --network mainnet` (see `pnpm prepare-local` / `pnpm deploy-local`).
-# Keep the placeholders below at 0x0 / 0 in git.
 dataSources:
-  # Pools are indexed off ProtocolCore rather than PoolFactory. registerPool() is the single
-  # chokepoint every pool passes through — the factory calls it too — and it enforces
-  # `pool.borrowAsset() == borrowAsset`, so a Pool entity can never be missing or mis-keyed.
-  # Indexing PoolFactory.PoolCreated instead would miss pools a PoolAdmin registers directly,
-  # and would go blind entirely if setPoolFactory() re-pointed the factory.
   - kind: ethereum
     name: ProtocolCore
     network: mainnet
@@ -33,17 +25,11 @@ dataSources:
         - name: ERC20
           file: ./abis/ERC20.json
       eventHandlers:
-        - event: PoolRegistered(indexed address,indexed address)
-          handler: handlePoolRegistered
-        # Swapping the RiskManager silently invalidates CollateralType.currentBorrows and
-        # ProtocolStats.globalBorrowsUsd, which are accumulated from its events and have no
-        # self-correcting read. Indexed purely so the break is visible in the logs.
+        - event: LendingPoolRegistered(indexed address,indexed address)
+          handler: handleLendingPoolRegistered
         - event: RiskManagerUpdated(indexed address,indexed address)
           handler: handleRiskManagerUpdated
       file: ./src/protocol-core.ts
-
-  # Risk params are no longer per-market; they live here, keyed by LP type, and apply to
-  # every pool at once.
   - kind: ethereum
     name: RiskManager
     network: mainnet
@@ -73,7 +59,6 @@ dataSources:
         - event: RepayRecorded(uint256,indexed uint8,uint256)
           handler: handleRepayRecorded
       file: ./src/risk-manager.ts
-
   - kind: ethereum
     name: PositionManager
     network: mainnet
@@ -94,14 +79,14 @@ dataSources:
         - name: PositionManager
           file: ./abis/PositionManager.json
       eventHandlers:
-        - event: PositionCreated(indexed uint256,indexed address,indexed address,address,uint256,uint8,uint256)
+        - event: PositionCreated(indexed uint256,indexed address,indexed
+            address,address,uint256,uint8,uint256)
           handler: handlePositionCreated
         - event: PositionClosed(indexed uint256,indexed address)
           handler: handlePositionClosed
         - event: PositionLiquidated(indexed uint256,indexed address,uint256)
           handler: handlePositionLiquidated
       file: ./src/position-manager.ts
-
   - kind: ethereum
     name: LendingEngine
     network: mainnet
@@ -123,9 +108,6 @@ dataSources:
       abis:
         - name: LendingEngine
           file: ./abis/LendingEngine.json
-        # syncPoolState() binds the pool proxy to read getPoolState(). A contract can only be
-        # bound from a data source that declares its ABI, so every mapping that reaches for the
-        # pool needs LendingPool here — not just the pool template itself.
         - name: LendingPool
           file: ./abis/LendingPool.json
       eventHandlers:
@@ -136,7 +118,6 @@ dataSources:
         - event: DebtWrittenOff(indexed uint256,indexed address,uint256,address)
           handler: handleDebtWrittenOff
       file: ./src/lending-engine.ts
-
   - kind: ethereum
     name: LiquidationEngine
     network: mainnet
@@ -156,16 +137,13 @@ dataSources:
       abis:
         - name: LiquidationEngine
           file: ./abis/LiquidationEngine.json
-        # handleLiquidationExecuted refreshes the pool after the repay leg — same bind as above.
         - name: LendingPool
           file: ./abis/LendingPool.json
       eventHandlers:
-        - event: LiquidationExecuted(indexed uint256,indexed address,uint256,uint256,uint256)
+        - event: LiquidationExecuted(indexed uint256,indexed
+            address,uint256,uint256,uint256)
           handler: handleLiquidationExecuted
       file: ./src/liquidation-engine.ts
-
-# Pool proxies are deployed at runtime, so they are indexed via a template instantiated (with
-# the pool id in its context) from handlePoolRegistered.
 templates:
   - kind: ethereum
     name: LendingPool
@@ -187,8 +165,6 @@ templates:
           handler: handleSupply
         - event: Withdraw(indexed address,uint256,uint256)
           handler: handleWithdraw
-        # accrueInterest() credits lenders by mutating totalSupply directly, so without this
-        # the pool's liquidity and rate fields would only ever refresh on user activity.
         - event: InterestAccrued(uint256,uint256,uint256,uint256)
           handler: handleInterestAccrued
       file: ./src/lending-pool.ts
