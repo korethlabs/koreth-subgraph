@@ -1,5 +1,11 @@
 import {Address, BigDecimal, BigInt, dataSource, log} from "@graphprotocol/graph-ts";
-import {InterestAccrued, LendingPool, Supply, Withdraw} from "../generated/templates/LendingPool/LendingPool";
+import {
+    DeficitEliminated,
+    InterestAccrued,
+    LendingPool,
+    Supply,
+    Withdraw,
+} from "../generated/templates/LendingPool/LendingPool";
 import {Pool, SupplyPosition} from "../generated/schema";
 import {syncPoolState} from "./helpers/pool";
 
@@ -63,6 +69,16 @@ export function handleWithdraw(event: Withdraw): void {
 // Interest accrual moves totalSupply, totalBorrow and utilization without any user action, so
 // this is what keeps a pool's figures honest between borrows and supplies.
 export function handleInterestAccrued(event: InterestAccrued): void {
+    let pool = Pool.load(currentPoolId());
+    if (pool == null) return;
+    syncPoolState(pool, event.block.timestamp);
+}
+
+// Covering a socialized deficit credits reserves back into totalSupply, lifting the share price
+// again. Unlike a write-off (which rides along with DebtWrittenOff on the LendingEngine data
+// source), this refund has no other event to piggyback on, so without its own handler the pool's
+// totalSupply would stay stuck at its post-default low. Re-read state to pick the refund up.
+export function handleDeficitEliminated(event: DeficitEliminated): void {
     let pool = Pool.load(currentPoolId());
     if (pool == null) return;
     syncPoolState(pool, event.block.timestamp);

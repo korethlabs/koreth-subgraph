@@ -527,6 +527,12 @@
         "internalType": "uint256"
       },
       {
+        "name": "refundedToSuppliers",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
         "name": "remaining",
         "type": "uint256",
         "indexed": false,
@@ -540,7 +546,19 @@
     "name": "DeficitRecorded",
     "inputs": [
       {
-        "name": "amount",
+        "name": "burned",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "reservesUsed",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "supplierLoss",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

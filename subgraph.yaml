@@ -167,4 +167,6 @@ templates:
           handler: handleWithdraw
         - event: InterestAccrued(uint256,uint256,uint256,uint256)
           handler: handleInterestAccrued
+        - event: DeficitEliminated(uint256,uint256,uint256)
+          handler: handleDeficitEliminated
       file: ./src/lending-pool.ts
