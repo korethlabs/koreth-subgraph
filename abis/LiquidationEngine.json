@@ -217,13 +217,7 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [
-      {
-        "name": "profit",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -388,12 +382,6 @@
       },
       {
         "name": "collateralSeized",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "liquidatorProfit",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

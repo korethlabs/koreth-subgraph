@@ -18,7 +18,6 @@ export function handleLiquidationExecuted(event: LiquidationExecuted): void {
         le.liquidator = event.params.liquidator;
         le.repayAmount = toDecimal(event.params.repayAmount, pool.decimals); // borrow asset
         le.collateralSeized = seized;
-        le.liquidatorProfit = toDecimal(event.params.liquidatorProfit, POSITION_VALUE_DECIMALS); // always 0
         le.timestamp = event.block.timestamp;
         le.txHash = event.transaction.hash;
         le.save();

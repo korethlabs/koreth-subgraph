@@ -141,7 +141,7 @@ dataSources:
           file: ./abis/LendingPool.json
       eventHandlers:
         - event: LiquidationExecuted(indexed uint256,indexed
-            address,uint256,uint256,uint256)
+            address,uint256,uint256)
           handler: handleLiquidationExecuted
       file: ./src/liquidation-engine.ts
 templates:

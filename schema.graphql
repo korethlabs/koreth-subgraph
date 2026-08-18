@@ -105,7 +105,6 @@ type LiquidationEvent @entity(immutable: true) {
   liquidator: Bytes!
   repayAmount: BigDecimal!
   collateralSeized: BigDecimal!
-  liquidatorProfit: BigDecimal!
   timestamp: BigInt!
   txHash: Bytes!
 }
