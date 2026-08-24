@@ -50,6 +50,28 @@ type Pool @entity {
   updatedAt: BigInt!
 }
 
+# An AMM pool the protocol accepts as collateral backing. ProtocolCore stores this as a plain
+# mapping, which no contract call can enumerate, so listing the accepted set is the one thing an
+# index can do that the chain cannot — and the only reason this entity exists. Pool metadata
+# (which DEX version it belongs to, which tokens it holds) the chain answers better, and is
+# deliberately not stored here.
+#
+# whitelisted is the acceptance state as of the last indexed block, not as of now: it moves only
+# when a whitelist event is indexed, so between the chain accepting or dropping a pool and this
+# subgraph catching up, it is wrong. A consumer about to act on it — offering a pool for deposit,
+# say — should confirm with ProtocolCore.isLpPoolSupported, which is settled at the same block the
+# deposit will be.
+#
+# Removed pools are kept with whitelisted: false rather than deleted: a pool can be
+# re-whitelisted, and a consumer that wants only the live ones filters on the flag.
+type CollateralPool @entity {
+  id: ID! # pool address, lowercased hex
+  address: Bytes!
+  whitelisted: Boolean!
+  whitelistedAt: BigInt!
+  removedAt: BigInt
+}
+
 # Risk parameters are keyed by LP type alone and apply across every pool, so this entity is
 # the shared-pool equivalent of the per-market config that used to live on Market.
 type CollateralType @entity {

@@ -1,9 +1,14 @@
 import {BigDecimal, DataSourceContext, log} from "@graphprotocol/graph-ts";
-import {LendingPoolRegistered, RiskManagerUpdated} from "../generated/ProtocolCore/ProtocolCore";
+import {
+    LendingPoolRegistered,
+    LpPoolRemoved,
+    LpPoolWhitelisted,
+    RiskManagerUpdated,
+} from "../generated/ProtocolCore/ProtocolCore";
 import {ERC20} from "../generated/ProtocolCore/ERC20";
 import {LendingPool as LendingPoolTemplate} from "../generated/templates";
-import {Pool} from "../generated/schema";
-import {poolId, UNKNOWN_DECIMALS} from "./helpers/common";
+import {CollateralPool, Pool} from "../generated/schema";
+import {collateralPoolId, poolId, UNKNOWN_DECIMALS} from "./helpers/common";
 
 export function handleLendingPoolRegistered(event: LendingPoolRegistered): void {
     // registerLendingPool() rejects a borrow asset that is already registered, so this can never
@@ -47,6 +52,42 @@ export function handleLendingPoolRegistered(event: LendingPoolRegistered): void 
     let context = new DataSourceContext();
     context.setString("poolId", pool.id);
     LendingPoolTemplate.createWithContext(event.params.pool, context);
+}
+
+/**
+ * Load-or-create rather than create: whitelistLpPool() rejects a pool that is already whitelisted,
+ * but a pool that was removed can be whitelisted again, and that second event must revive the
+ * existing entity rather than orphan its history behind a new one.
+ */
+export function handleLpPoolWhitelisted(event: LpPoolWhitelisted): void {
+    let id = collateralPoolId(event.params.pool);
+    let pool = CollateralPool.load(id);
+    if (pool == null) {
+        pool = new CollateralPool(id);
+        pool.address = event.params.pool;
+    }
+    pool.whitelisted = true;
+    pool.whitelistedAt = event.block.timestamp;
+    // Cleared, not left behind: a pool that is accepted again has no removal date, and a stale one
+    // would read as "removed" to anything looking at the field instead of the flag.
+    pool.removedAt = null;
+    pool.save();
+}
+
+export function handleLpPoolRemoved(event: LpPoolRemoved): void {
+    let pool = CollateralPool.load(collateralPoolId(event.params.pool));
+    // removeLpPool() requires the pool be whitelisted, so its entity must already exist. If it does
+    // not, this subgraph missed the whitelisting — inventing an entity here would paper over that
+    // with a row whose whitelistedAt is a fiction.
+    if (pool == null) {
+        log.error("LpPoolRemoved: no CollateralPool for {} — the whitelisting event was not indexed", [
+            event.params.pool.toHex(),
+        ]);
+        return;
+    }
+    pool.whitelisted = false;
+    pool.removedAt = event.block.timestamp;
+    pool.save();
 }
 
 /**
