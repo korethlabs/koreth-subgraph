@@ -17,6 +17,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Pool
+        - CollateralPool
       abis:
         - name: ProtocolCore
           file: ./abis/ProtocolCore.json
@@ -27,6 +28,10 @@ dataSources:
       eventHandlers:
         - event: LendingPoolRegistered(indexed address,indexed address)
           handler: handleLendingPoolRegistered
+        - event: LpPoolWhitelisted(indexed address)
+          handler: handleLpPoolWhitelisted
+        - event: LpPoolRemoved(indexed address)
+          handler: handleLpPoolRemoved
         - event: RiskManagerUpdated(indexed address,indexed address)
           handler: handleRiskManagerUpdated
       file: ./src/protocol-core.ts

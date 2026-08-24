@@ -25,6 +25,12 @@ export function poolId(borrowAsset: Address): string {
     return borrowAsset.toHex();
 }
 
+// CollateralPool entities are keyed by the AMM pool address. Both whitelist handlers go through
+// here so a removal can never miss the entity its whitelisting created.
+export function collateralPoolId(pool: Address): string {
+    return pool.toHex();
+}
+
 // ILPAdapter.LPType enum order (see src/interfaces/ILPAdapter.sol).
 // This doubles as the CollateralType entity id, so the fallback keeps the numeric value: if core
 // adds a seventh LP type before the subgraph is redeployed, a bare "Unknown" would merge every
