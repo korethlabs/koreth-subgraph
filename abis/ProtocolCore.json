@@ -17,6 +17,13 @@
   },
   {
     "type": "function",
+    "name": "acceptACLManager",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "acceptOwnership",
     "inputs": [],
     "outputs": [],
@@ -53,6 +60,13 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cancelACLManagerTransfer",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -101,7 +115,7 @@
   },
   {
     "type": "function",
-    "name": "getLpPoolAge",
+    "name": "getLpPoolType",
     "inputs": [
       {
         "name": "pool",
@@ -112,8 +126,8 @@
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "stateMutability": "view"
@@ -209,25 +223,6 @@
   },
   {
     "type": "function",
-    "name": "lpPoolAddedAt",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "maxRegisteredLPType",
     "inputs": [],
     "outputs": [
@@ -287,6 +282,19 @@
         "name": "",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingACLManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -412,7 +420,7 @@
   },
   {
     "type": "function",
-    "name": "setACLManager",
+    "name": "setPendingACLManager",
     "inputs": [
       {
         "name": "_aclManager",
@@ -509,10 +517,53 @@
         "name": "pool",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "lpType",
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "ACLManagerTransferCancelled",
+    "inputs": [
+      {
+        "name": "currentManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "cancelledPendingManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ACLManagerTransferStarted",
+    "inputs": [
+      {
+        "name": "currentManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "pendingManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -599,6 +650,12 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      },
+      {
+        "name": "lpType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "anonymous": false

@@ -28,7 +28,7 @@ dataSources:
       eventHandlers:
         - event: LendingPoolRegistered(indexed address,indexed address)
           handler: handleLendingPoolRegistered
-        - event: LpPoolWhitelisted(indexed address)
+        - event: LpPoolWhitelisted(indexed address,indexed uint8)
           handler: handleLpPoolWhitelisted
         - event: LpPoolRemoved(indexed address)
           handler: handleLpPoolRemoved
