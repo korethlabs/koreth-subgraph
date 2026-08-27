@@ -12,6 +12,19 @@
   },
   {
     "type": "function",
+    "name": "DAILY_BORROW_WINDOW",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_HAIRCUT_BPS",
     "inputs": [],
     "outputs": [
@@ -147,6 +160,45 @@
   },
   {
     "type": "function",
+    "name": "dailyBorrowIncreaseLimit",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dailyBorrowUsedInWindow",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dailyBorrowWindowStart",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getCollateralConfig",
     "inputs": [
       {
@@ -263,6 +315,19 @@
   {
     "type": "function",
     "name": "maxPositionsPerUser",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minBorrowUsd",
     "inputs": [],
     "outputs": [
       {
@@ -453,6 +518,19 @@
   },
   {
     "type": "function",
+    "name": "setDailyBorrowIncreaseLimit",
+    "inputs": [
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setGlobalBorrowCap",
     "inputs": [
       {
@@ -501,6 +579,19 @@
     "inputs": [
       {
         "name": "max",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMinBorrowUsd",
+    "inputs": [
+      {
+        "name": "minUsd",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -684,6 +775,25 @@
   },
   {
     "type": "event",
+    "name": "DailyBorrowIncreaseLimitUpdated",
+    "inputs": [
+      {
+        "name": "oldValue",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newValue",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "DepositRecorded",
     "inputs": [
       {
@@ -767,6 +877,25 @@
   {
     "type": "event",
     "name": "MaxPositionsPerUserUpdated",
+    "inputs": [
+      {
+        "name": "oldValue",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newValue",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MinBorrowUsdUpdated",
     "inputs": [
       {
         "name": "oldValue",

@@ -27,5 +27,54 @@ jobs:
 
       # Generates AssemblyScript types from schema + committed ABIs, then compiles
       # the mappings to WASM. Catches schema/handler/ABI mismatches.
+      #
+      # Note what it cannot catch: it reads the ABIs committed here, so it only ever asks whether
+      # the manifest agrees with *this repo's copy* of the contracts. When the copy is stale in the
+      # same direction as the manifest the two agree perfectly and this job is green, while the
+      # deploy — which regenerates the ABIs from the real artifacts — fails. That is the gap the
+      # abi-drift job below closes.
       - name: Codegen + build
         run: npm run build
+
+  # The ABIs in abis/ are a copy of a build output from another repo, and a copy can go stale
+  # silently. prepare-local.mjs regenerates them from the Foundry artifacts at deploy time, so the
+  # first thing that notices a stale copy is the deploy — which is exactly what happened with
+  # LpPoolWhitelisted, where the manifest and the copy had both missed a second event parameter.
+  #
+  # So run the regeneration ahead of time and require it to be a no-op. The check runs the real
+  # prepare-local.mjs rather than a purpose-built comparison, deliberately: a separate
+  # implementation of "what the ABI should be" would be a second copy able to drift on its own,
+  # which is the failure being fixed.
+  abi-drift:
+    name: committed ABIs match the deployed contracts
+    # Self-hosted, because the authority lives on the box. A subgraph deploy does not pull the
+    # contracts repo — it reads whatever clone is already there — so the artifacts on spartakus are
+    # not an approximation of what the deploy will use, they are it. Compiling core's main on a
+    # hosted runner would check a different and less relevant question.
+    runs-on: [self-hosted, spartakus]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Stated rather than left to fail as a confusing mount error: a box that has never deployed
+      # has no clone to compare against, and that is a different problem from a drifted ABI.
+      - name: Locate the contracts on the box
+        run: |
+          core="$HOME/koreth/repos/koreth-v1-core"
+          test -d "$core/out" || { echo "No Foundry artifacts at $core/out — has this box ever run a deploy?"; exit 1; }
+          echo "CORE_DIR=$core" >> "$GITHUB_ENV"
+
+      # Same node image and mount shape the deploy uses. The contracts are mounted read-only: this
+      # job has no business writing into the clone a running stack was deployed from.
+      - name: Regenerate the ABIs from the artifacts
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e CORE_ROOT=/core \
+            -v "$CORE_DIR:/core:ro" \
+            -v "$PWD:/sg" -w /sg \
+            node:22-slim node scripts/prepare-local.mjs
+
+      # Scoped to abis/. prepare-local.mjs also rewrites networks.json, whose addresses and
+      # startBlock change with every fresh fork — it is per-deployment state, and comparing it here
+      # would fail on every run for a reason that has nothing to do with drift.
+      - name: Fail if the committed ABIs differ
+        run: git diff --exit-code -- abis/

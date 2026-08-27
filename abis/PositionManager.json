@@ -247,6 +247,19 @@
   },
   {
     "type": "function",
+    "name": "getCircuitBreaker",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract CircuitBreaker"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getDepositBlock",
     "inputs": [
       {
@@ -361,6 +374,11 @@
           },
           {
             "name": "depositBlock",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "recordedValue",
             "type": "uint256",
             "internalType": "uint256"
           }
@@ -704,25 +722,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "CircuitBreakerNotConfigured",
-    "inputs": [
-      {
-        "name": "borrowAsset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
