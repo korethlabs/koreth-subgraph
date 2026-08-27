@@ -76,5 +76,12 @@ jobs:
       # Scoped to abis/. prepare-local.mjs also rewrites networks.json, whose addresses and
       # startBlock change with every fresh fork — it is per-deployment state, and comparing it here
       # would fail on every run for a reason that has nothing to do with drift.
+      #
+      # Staged first, because a plain `git diff` compares tracked files only. Adding a contract to
+      # prepare-local.mjs generates an ABI that nothing has committed yet, and an untracked file is
+      # invisible to `git diff` — the check would pass while claiming the committed ABIs are
+      # complete, which is the kind of green this job exists to stop being possible.
       - name: Fail if the committed ABIs differ
-        run: git diff --exit-code -- abis/
+        run: |
+          git add -A -- abis/
+          git diff --cached --exit-code -- abis/
