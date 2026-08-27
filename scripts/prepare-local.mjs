@@ -36,10 +36,11 @@ const CALL_ABIS = {
 
 mkdirSync(abisDir, {recursive: true});
 
-// The trailing newline is not cosmetic here. CI regenerates these files and requires the result to
-// be byte-identical to the committed copies, so anything that makes a checked-in file differ from
-// this function's output is a permanent failure — and every editor and formatter that touches
-// abis/*.json will add the newline back.
+// The trailing newline is not cosmetic for the files under abis/: CI regenerates those and
+// requires the result to be byte-identical to the committed copies, so anything that makes a
+// checked-in ABI differ from this function's output is a permanent failure — and every editor and
+// formatter that touches them will add the newline back. networks.json goes through here too, but
+// it is per-deployment state that nothing compares; it is written the same way for consistency.
 function writeJson(path, value) {
     writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
