@@ -67,6 +67,10 @@ jobs:
         run: |
           core="$HOME/koreth/repos/koreth-v1-core"
           test -d "$core/out" || { echo "No Foundry artifacts at $core/out — has this box ever run a deploy?"; exit 1; }
+          # prepare-local.mjs reads this too, for networks.json. Left to fail on its own it raises a
+          # Node ENOENT from inside the container, which reads like a broken script rather than a
+          # box that has never deployed — and telling those two apart is the whole point of this step.
+          test -f "$core/deployments/local.json" || { echo "No deployment at $core/deployments/local.json — has this box ever run a deploy?"; exit 1; }
           echo "CORE_DIR=$core" >> "$GITHUB_ENV"
 
       # Same node image and mount shape the deploy uses. The contracts are mounted read-only: this
