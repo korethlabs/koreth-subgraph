@@ -52,6 +52,12 @@ jobs:
     # not an approximation of what the deploy will use, they are it. Compiling core's main on a
     # hosted runner would check a different and less relevant question.
     runs-on: [self-hosted, spartakus]
+    # Being self-hosted, this job runs repository code on the deploy box, which holds the .env with
+    # the deployer key and the seed mnemonic — a PR that could reach it would not need to exfiltrate
+    # a workflow secret, the material is already on disk. Forking is disabled on this repo today, so
+    # the branch below is unreachable; it is written down anyway because that is a setting rather
+    # than a property, and the cost of turning it on should not be an unnoticed hole here.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
 
