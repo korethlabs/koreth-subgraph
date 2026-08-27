@@ -36,10 +36,19 @@ const CALL_ABIS = {
 
 mkdirSync(abisDir, {recursive: true});
 
+// The trailing newline is not cosmetic for the files under abis/: CI regenerates those and
+// requires the result to be byte-identical to the committed copies, so anything that makes a
+// checked-in ABI differ from this function's output is a permanent failure — and every editor and
+// formatter that touches them will add the newline back. networks.json goes through here too, but
+// it is per-deployment state that nothing compares; it is written the same way for consistency.
+function writeJson(path, value) {
+    writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
 function exportAbi(name, artifact) {
     const art = JSON.parse(readFileSync(join(outDir, artifact), "utf8"));
     if (!Array.isArray(art.abi)) throw new Error(`No .abi array in ${artifact}`);
-    writeFileSync(join(abisDir, `${name}.json`), JSON.stringify(art.abi, null, 2));
+    writeJson(join(abisDir, `${name}.json`), art.abi);
     console.log(`abi  -> abis/${name}.json`);
 }
 
@@ -52,7 +61,7 @@ const ERC20_ABI = [
     {name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{name: "", type: "uint8"}]},
     {name: "symbol", type: "function", stateMutability: "view", inputs: [], outputs: [{name: "", type: "string"}]},
 ];
-writeFileSync(join(abisDir, "ERC20.json"), JSON.stringify(ERC20_ABI, null, 2));
+writeJson(join(abisDir, "ERC20.json"), ERC20_ABI);
 console.log("abi  -> abis/ERC20.json");
 
 // 2. Generate networks.json from the deployment
@@ -66,5 +75,5 @@ for (const [name, {key}] of Object.entries(SOURCES)) {
     if (!address) throw new Error(`Missing '${key}' in ${deployments}`);
     networks.mainnet[name] = {address, startBlock};
 }
-writeFileSync(join(subgraphRoot, "networks.json"), JSON.stringify(networks, null, 2));
+writeJson(join(subgraphRoot, "networks.json"), networks);
 console.log(`net  -> networks.json (startBlock ${startBlock})`);
