@@ -18,3 +18,9 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# Local agent harness config — not protocol source
+.axa/
+AXA.md
+.claude/
+CLAUDE.md
