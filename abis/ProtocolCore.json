@@ -595,12 +595,6 @@
         "internalType": "enum ILPAdapter.LPType"
       },
       {
-        "name": "oldAdapter",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
         "name": "adapter",
         "type": "address",
         "indexed": true,
