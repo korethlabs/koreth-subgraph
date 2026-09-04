@@ -44,7 +44,7 @@ jobs:
     # afford to share a run that cries wolf.
     if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -90,7 +90,7 @@ jobs:
     # is a bad exchange. If the tamper check is wanted, it should be its own job that says so.
     if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -148,7 +148,7 @@ jobs:
       && github.event.pull_request.head.repo.full_name == github.repository
       && github.actor != 'dependabot[bot]')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Stated rather than left to fail as a confusing mount error: a box that has never deployed
       # has no clone to compare against, and that is a different problem from a drifted ABI.
