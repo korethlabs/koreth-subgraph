@@ -4,15 +4,41 @@ on:
   push:
     branches: [main]
   pull_request:
+  # For abi-drift. Drift here is never caused by a change to this repo — it is caused by the
+  # contracts repo moving underneath a copy committed here. So the one thing the trigger must not
+  # depend on is activity in this repo, and push/pull_request are exactly that dependency: a quiet
+  # week is indistinguishable from a correct one. koreth-sdk lived that failure — its ABIs went
+  # stale on 2026-08-13 and nothing noticed until 09-01, because for three weeks nobody opened a
+  # PR against it while the contracts kept moving. The frequency below will get tuned; the reason
+  # will not.
+  #
+  # Off the hour deliberately: GitHub delays or drops scheduled runs under the load spike at :00.
+  schedule:
+    - cron: "17 6 * * *"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keyed on the event as well as the ref, which only starts to matter with schedule in the list
+  # above. A scheduled run reports github.ref as the default branch, the same value a push to main
+  # reports, so without this they share a group and cancel-in-progress makes them evict each other:
+  # a cron landing mid-run cancels the post-merge CI, and a merge landing mid-cron silently drops
+  # that day's drift check. Both are losses of signal introduced by adding the trigger.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: codegen + build
     runs-on: ubuntu-latest
+    # Not on the schedule. This job reads only files committed here, so with no commits between two
+    # scheduled runs its answer cannot change, and a daily green that restates yesterday's is the
+    # kind of uninformative tick this workflow is otherwise trying to remove.
+    #
+    # "Its answer cannot change" is a reason to exclude, not a test for what to include. A job that
+    # reaches the network can change its answer overnight and still not belong here, because on a
+    # cron its likeliest red is the network rather than the thing it checks — and the drift check
+    # below is the only thing on this schedule anyone would otherwise not be watching, so it cannot
+    # afford to share a run that cries wolf.
+    if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
 
@@ -94,9 +120,21 @@ jobs:
     # Being self-hosted, this job runs repository code on the deploy box, which holds the .env with
     # the deployer key and the seed mnemonic — a PR that could reach it would not need to exfiltrate
     # a workflow secret, the material is already on disk. Forking is disabled on this repo today, so
-    # the branch below is unreachable; it is written down anyway because that is a setting rather
-    # than a property, and the cost of turning it on should not be an unnoticed hole here.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # the fork branch below is unreachable; it is written down anyway because that is a setting
+    # rather than a property, and the cost of turning it on should not be an unnoticed hole here.
+    #
+    # Events are enumerated rather than excluded, so a trigger nobody listed here does not reach the
+    # box by default. The cost of that choice is that **adding a trigger to `on:` above without
+    # adding it here skips this job silently** — the workflow runs, reports green, and the drift
+    # check never executed. That is worse than having no trigger at all, because it looks like
+    # coverage. The earlier form of this condition had exactly that bug waiting in it: it tested
+    # `github.event.pull_request.head.repo.full_name`, which on a non-PR event resolves through null
+    # to null, so every event except `push` failed the check.
+    if: >-
+      github.event_name == 'push'
+      || github.event_name == 'schedule'
+      || (github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
 
