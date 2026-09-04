@@ -13,6 +13,10 @@ on:
   # will not.
   #
   # Off the hour deliberately: GitHub delays or drops scheduled runs under the load spike at :00.
+  # That lowers the odds, it does not remove them — the first run on this cron was created five
+  # hours after its slot, with nothing at the slot itself. So the absence of a run is not a signal.
+  # Before roughly midday UTC, "no drift check today" means no data yet, not a failed check, and
+  # anything built on top of this schedule has to treat a missing run and a red run as different.
   schedule:
     - cron: "17 6 * * *"
 
