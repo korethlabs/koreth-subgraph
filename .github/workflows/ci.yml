@@ -49,6 +49,16 @@ jobs:
     # `binary-linux-22` — built for this image. Letting `latest` roll forward would silently pair
     # the binary with a distro it was not built against.
     runs-on: ubuntu-22.04
+    # Kept off any scheduled run, and not for the reason that excludes `codegen + build`. This job's
+    # answer genuinely *can* change without a commit: it re-downloads the pinned matchstick release
+    # asset and verifies its SHA-256 every run, and a release asset is mutable, so nightly it would
+    # double as an upstream-tamper check. That is worth having and it is still the wrong trade here.
+    # On a cron the dominant failure is not tampering but availability — a 404 or a rate-limit — and
+    # a nightly job that is periodically red for reasons unrelated to what it checks teaches people
+    # to skip the whole run. The drift check shares this workflow, and it is the one thing on the
+    # schedule that nobody would otherwise be looking at. Spending its credibility on download flake
+    # is a bad exchange. If the tamper check is wanted, it should be its own job that says so.
+    if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
 
