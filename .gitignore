@@ -24,3 +24,7 @@ npm-debug.log*
 AXA.md
 .claude/
 CLAUDE.md
+
+# Matchstick compile artifacts (wasm + run metadata), written next to the tests
+tests/.bin/
+tests/.latest.json
