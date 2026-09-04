@@ -31,9 +31,13 @@ jobs:
     runs-on: ubuntu-latest
     # Not on the schedule. This job reads only files committed here, so with no commits between two
     # scheduled runs its answer cannot change, and a daily green that restates yesterday's is the
-    # kind of uninformative tick this workflow is otherwise trying to remove. A job whose scheduled
-    # answer *can* change without a commit — one that fetches something — is a different case and
-    # belongs on the cron.
+    # kind of uninformative tick this workflow is otherwise trying to remove.
+    #
+    # "Its answer cannot change" is a reason to exclude, not a test for what to include. A job that
+    # reaches the network can change its answer overnight and still not belong here, because on a
+    # cron its likeliest red is the network rather than the thing it checks — and the drift check
+    # below is the only thing on this schedule anyone would otherwise not be watching, so it cannot
+    # afford to share a run that cries wolf.
     if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
