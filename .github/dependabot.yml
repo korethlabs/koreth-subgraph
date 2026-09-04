@@ -34,5 +34,8 @@ updates:
     commit-message:
       prefix: chore(ci)
     groups:
-      actions:
+      actions-minor-patch:
         patterns: ["*"]
+        update-types:
+          - minor
+          - patch
