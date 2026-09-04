@@ -11,7 +11,7 @@
     "create-local": "graph create --node http://localhost:8020 koreth/local",
     "remove-local": "graph remove --node http://localhost:8020 koreth/local",
     "deploy-local": "graph codegen && graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 --network mainnet --version-label v0.0.1 koreth/local",
-    "test": "graph test",
+    "test": "graph codegen && node scripts/matchstick.mjs",
     "clean": "rm -rf build generated"
   },
   "devDependencies": {

@@ -36,6 +36,45 @@ jobs:
       - name: Codegen + build
         run: npm run build
 
+  # `graph build` only proves the mappings compile against the schema. It says nothing about what
+  # a handler does when it runs, and this is the repo where doing the wrong thing produces silence
+  # rather than an error — a handler that indexes nothing looks exactly like a chain with no
+  # activity. The fail-closed branches are the sharpest case: they are the ones that decide to skip
+  # rather than guess, they run only on inputs a normal deploy never sees, and until this job
+  # existed they had never executed anywhere, so "fails closed" and "is broken" were the same
+  # observation.
+  test:
+    name: mapping handler tests
+    # Pinned to 22.04 rather than ubuntu-latest, because the matchstick release consumed below is
+    # `binary-linux-22` — built for this image. Letting `latest` roll forward would silently pair
+    # the binary with a distro it was not built against.
+    runs-on: ubuntu-22.04
+    # Kept off any scheduled run, and not for the reason that excludes `codegen + build`. This job's
+    # answer genuinely *can* change without a commit: it re-downloads the pinned matchstick release
+    # asset and verifies its SHA-256 every run, and a release asset is mutable, so nightly it would
+    # double as an upstream-tamper check. That is worth having and it is still the wrong trade here.
+    # On a cron the dominant failure is not tampering but availability — a 404 or a rate-limit — and
+    # a nightly job that is periodically red for reasons unrelated to what it checks teaches people
+    # to skip the whole run. The drift check shares this workflow, and it is the one thing on the
+    # schedule that nobody would otherwise be looking at. Spending its credibility on download flake
+    # is a bad exchange. If the tamper check is wanted, it should be its own job that says so.
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm install --no-audit --no-fund
+
+      # Runs codegen first: generated/ is not committed, so without it the tests would compile
+      # against nothing. scripts/matchstick.mjs downloads the pinned matchstick binary and
+      # forwards its exit code, which is what makes a failing assertion fail the job.
+      - name: Run mapping tests
+        run: npm test
+
   # The ABIs in abis/ are a copy of a build output from another repo, and a copy can go stale
   # silently. prepare-local.mjs regenerates them from the Foundry artifacts at deploy time, so the
   # first thing that notices a stale copy is the deploy — which is exactly what happened with
