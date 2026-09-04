@@ -23,9 +23,15 @@ import {
 // Lowercase throughout. Entity ids come from Address.toHex(), which lowercases, so a
 // mixed-case literal here would build an event whose entity is stored under a different key
 // than the one the assertions look up — a test failure that looks like a handler bug.
+// One address per role, never shared. An AMM pool the protocol accepts as collateral and the
+// LendingPool proxy for a borrow asset are unrelated things that happen to be the same type, so
+// a fixture that reuses one address for both would still pass if a handler read the wrong one.
 const LP_POOL = "0x1111111111111111111111111111111111111111";
-const BORROW_ASSET = "0x2222222222222222222222222222222222222222";
-const POOL_PROXY = "0x3333333333333333333333333333333333333333";
+const OTHER_LP_POOL = "0x2222222222222222222222222222222222222222";
+// Never whitelisted in any test — it exists to be the pool a removal cannot find.
+const UNKNOWN_LP_POOL = "0x3333333333333333333333333333333333333333";
+const BORROW_ASSET = "0x4444444444444444444444444444444444444444";
+const LENDING_POOL_PROXY = "0x5555555555555555555555555555555555555555";
 
 const WHITELIST_TS: i32 = 1000;
 const REMOVE_TS: i32 = 2000;
@@ -99,11 +105,11 @@ describe("handleLpPoolWhitelisted / handleLpPoolRemoved", () => {
     // keyed on a type that is not part of the key.
     test("the id is the pool address alone, independent of lpType", () => {
         handleLpPoolWhitelisted(buildLpPoolWhitelisted(LP_POOL, 1, WHITELIST_TS));
-        handleLpPoolWhitelisted(buildLpPoolWhitelisted(POOL_PROXY, 3, WHITELIST_TS));
+        handleLpPoolWhitelisted(buildLpPoolWhitelisted(OTHER_LP_POOL, 3, WHITELIST_TS));
 
         assert.entityCount("CollateralPool", 2);
         assert.fieldEquals("CollateralPool", LP_POOL, "whitelisted", "true");
-        assert.fieldEquals("CollateralPool", POOL_PROXY, "whitelisted", "true");
+        assert.fieldEquals("CollateralPool", OTHER_LP_POOL, "whitelisted", "true");
     });
 
     test("removal is soft: the entity survives with a removedAt timestamp", () => {
@@ -146,7 +152,7 @@ describe("handleLpPoolWhitelisted / handleLpPoolRemoved", () => {
     test("removal of an unknown pool leaves an existing pool untouched", () => {
         handleLpPoolWhitelisted(buildLpPoolWhitelisted(LP_POOL, 1, WHITELIST_TS));
 
-        handleLpPoolRemoved(buildLpPoolRemoved(BORROW_ASSET, REMOVE_TS));
+        handleLpPoolRemoved(buildLpPoolRemoved(UNKNOWN_LP_POOL, REMOVE_TS));
 
         assert.entityCount("CollateralPool", 1);
         assert.fieldEquals("CollateralPool", LP_POOL, "whitelisted", "true");
@@ -172,14 +178,14 @@ describe("handleLendingPoolRegistered", () => {
             .returns([ethereum.Value.fromString("USDC")]);
 
         handleLendingPoolRegistered(
-            buildLendingPoolRegistered(BORROW_ASSET, POOL_PROXY, WHITELIST_TS),
+            buildLendingPoolRegistered(BORROW_ASSET, LENDING_POOL_PROXY, WHITELIST_TS),
         );
 
         assert.entityCount("Pool", 1);
         // 6, not 18. A pool defaulted to 18 would mis-scale every USDC amount by 1e12.
         assert.fieldEquals("Pool", BORROW_ASSET, "decimals", "6");
         assert.fieldEquals("Pool", BORROW_ASSET, "symbol", "USDC");
-        assert.fieldEquals("Pool", BORROW_ASSET, "address", POOL_PROXY);
+        assert.fieldEquals("Pool", BORROW_ASSET, "address", LENDING_POOL_PROXY);
         assert.fieldEquals("Pool", BORROW_ASSET, "borrowAsset", BORROW_ASSET);
     });
 
@@ -195,7 +201,7 @@ describe("handleLendingPoolRegistered", () => {
             .reverts();
 
         handleLendingPoolRegistered(
-            buildLendingPoolRegistered(BORROW_ASSET, POOL_PROXY, WHITELIST_TS),
+            buildLendingPoolRegistered(BORROW_ASSET, LENDING_POOL_PROXY, WHITELIST_TS),
         );
 
         // The entity is still created — Position.pool is a non-nullable reference and must
