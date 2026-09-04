@@ -134,11 +134,19 @@ jobs:
     # coverage. The earlier form of this condition had exactly that bug waiting in it: it tested
     # `github.event.pull_request.head.repo.full_name`, which on a non-PR event resolves through null
     # to null, so every event except `push` failed the check.
+    #
+    # Dependabot is excluded explicitly, because the fork test below does not exclude it and reads
+    # as though it might: Dependabot pushes its branches into this repo, so `head.repo.full_name`
+    # is this repo and the condition passes. That test asks where the branch lives, not who wrote
+    # it. Left alone, every dependency bump would put a job on the deploy box for no signal — a
+    # change to package-lock.json cannot move the ABIs, and the schedule above checks drift daily
+    # regardless of whether anyone opened a PR.
     if: >-
       github.event_name == 'push'
       || github.event_name == 'schedule'
       || (github.event_name == 'pull_request'
-      && github.event.pull_request.head.repo.full_name == github.repository)
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]')
     steps:
       - uses: actions/checkout@v4
 
