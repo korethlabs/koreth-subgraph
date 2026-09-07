@@ -2,7 +2,7 @@
 # collateral type in RiskManager. A Position therefore points at BOTH a Pool (where its
 # debt lives) and a CollateralType (which risk params govern it).
 
-type Position @entity {
+type Position @entity(immutable: false) {
   id: ID!
   owner: Bytes!
   lpToken: Bytes!
@@ -30,7 +30,7 @@ type Position @entity {
 # Keyed by borrow-asset address (not the proxy address): PositionCreated and DebtWrittenOff
 # both identify a pool by its borrow asset, so this is the only id both can resolve without
 # an extra contract call.
-type Pool @entity {
+type Pool @entity(immutable: false) {
   id: ID!
   address: Bytes!
   borrowAsset: Bytes!
@@ -64,7 +64,7 @@ type Pool @entity {
 #
 # Removed pools are kept with whitelisted: false rather than deleted: a pool can be
 # re-whitelisted, and a consumer that wants only the live ones filters on the flag.
-type CollateralPool @entity {
+type CollateralPool @entity(immutable: false) {
   id: ID! # pool address, lowercased hex
   address: Bytes!
   whitelisted: Boolean!
@@ -74,7 +74,7 @@ type CollateralPool @entity {
 
 # Risk parameters are keyed by LP type alone and apply across every pool, so this entity is
 # the shared-pool equivalent of the per-market config that used to live on Market.
-type CollateralType @entity {
+type CollateralType @entity(immutable: false) {
   id: ID! # lpType name, e.g. "UniswapV3"
   lpType: Int!
   maxLtv: BigInt!
@@ -90,7 +90,7 @@ type CollateralType @entity {
   updatedAt: BigInt!
 }
 
-type SupplyPosition @entity {
+type SupplyPosition @entity(immutable: false) {
   id: ID! # poolId-user
   pool: Pool!
   user: Bytes!
@@ -141,7 +141,7 @@ type DebtWriteOffEvent @entity(immutable: true) {
   txHash: Bytes!
 }
 
-type ProtocolStats @entity {
+type ProtocolStats @entity(immutable: false) {
   id: ID!
   totalTVL: BigDecimal! # USD
   totalPositions: BigInt!
