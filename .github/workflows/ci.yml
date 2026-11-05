@@ -121,14 +121,26 @@ jobs:
     # not an approximation of what the deploy will use, they are it. Compiling core's main on a
     # hosted runner would check a different and less relevant question.
     runs-on: [self-hosted, spartakus]
-    # Being self-hosted, this job runs repository code on the deploy box, which holds the .env with
-    # the deployer key and the seed mnemonic — a PR that could reach it would not need to exfiltrate
-    # a workflow secret, the material is already on disk. Forking is disabled on this repo today, so
-    # the fork branch below is unreachable; it is written down anyway because that is a setting
-    # rather than a property, and the cost of turning it on should not be an unnoticed hole here.
+    # Being self-hosted, this job runs repository code on a machine the project operates, so running
+    # it has to require write access to this repo — not merely the ability to propose a change to
+    # it. A public repository cannot turn forking off, because that setting exists only for private
+    # repos, so a pull request from an arbitrary fork is always possible here.
     #
-    # Events are enumerated rather than excluded, so a trigger nobody listed here does not reach the
-    # box by default. The cost of that choice is that **adding a trigger to `on:` above without
+    # Be precise about what the condition below does for that, because it is easy to over-trust. A
+    # `pull_request` run uses the workflow file from the merge ref — the copy the pull request
+    # itself supplies — so a fork can edit this job: drop the condition, or point a new job at the
+    # same runner. The condition is an event filter over the *committed* workflow, not a boundary
+    # that survives a hostile diff. The thing that actually requires write access is the
+    # repository's "approval for running fork pull request workflows" policy, which lives in the
+    # Actions settings rather than in this file and cannot be read from it. That policy is the
+    # control to reason about when deciding who may reach this runner; tightening the condition
+    # here is not a substitute for it, and no wording here can report its current value truthfully
+    # over time.
+    #
+    # Within that limit, the condition is still written as an allowlist rather than an exclusion,
+    # because the committed workflow is the half this file is responsible for: events are enumerated
+    # rather than excluded, so a trigger nobody listed here does not reach the box by default. The
+    # cost of that choice is that **adding a trigger to `on:` above without
     # adding it here skips this job silently** — the workflow runs, reports green, and the drift
     # check never executed. That is worse than having no trigger at all, because it looks like
     # coverage. The earlier form of this condition had exactly that bug waiting in it: it tested
