@@ -121,11 +121,13 @@ jobs:
     # not an approximation of what the deploy will use, they are it. Compiling core's main on a
     # hosted runner would check a different and less relevant question.
     runs-on: [self-hosted, spartakus]
-    # Being self-hosted, this job runs repository code on the deploy box, which holds the .env with
-    # the deployer key and the seed mnemonic — a PR that could reach it would not need to exfiltrate
-    # a workflow secret, the material is already on disk. Forking is disabled on this repo today, so
-    # the fork branch below is unreachable; it is written down anyway because that is a setting
-    # rather than a property, and the cost of turning it on should not be an unnoticed hole here.
+    # Being self-hosted, this job runs repository code on a machine the project operates, so being
+    # able to start it has to require write access to this repo — not merely the ability to propose
+    # a change to it. A public repository cannot turn forking off: that setting exists only for
+    # private repos, so a pull request from an arbitrary fork is always possible here and cannot be
+    # prevented. The condition below is therefore the only thing between such a pull request and
+    # that machine, which is why it is a strict allowlist of events rather than a filter applied to
+    # them: anything it does not name is refused rather than inspected.
     #
     # Events are enumerated rather than excluded, so a trigger nobody listed here does not reach the
     # box by default. The cost of that choice is that **adding a trigger to `on:` above without
